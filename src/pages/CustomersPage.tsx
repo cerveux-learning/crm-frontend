@@ -14,11 +14,15 @@ import {
   Send,
   MessageSquare,
   CheckCircle,
+  Calendar,
+  CalendarClock,
+  Check,
+  Square,
 } from 'lucide-react';
 import { api } from '../api/client.js';
 import { Badge } from '../components/common/Badge.js';
 import { Modal } from '../components/common/Modal.js';
-import type { Customer, CustomerStatus, CreateCustomerInput, ActivityType } from '../types';
+import type { Customer, CustomerStatus, CreateCustomerInput, ActivityType, NextContact } from '../types';
 
 export const CustomersPage: React.FC = () => {
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -44,9 +48,14 @@ export const CustomersPage: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
 
   // Detail Modal
-  const [selectedCustomer, setSelectedCustomer] = useState<(Customer & { deals: any[]; sales: any[]; activities: any[] }) | null>(null);
+  const [selectedCustomer, setSelectedCustomer] = useState<(Customer & { deals: any[]; sales: any[]; activities: any[]; nextContacts?: NextContact[] }) | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [loadingDetail, setLoadingDetail] = useState(false);
+
+  // Next Contact in Detail Modal
+  const [nextContactDate, setNextContactDate] = useState('');
+  const [nextContactNotes, setNextContactNotes] = useState('');
+  const [submittingNextContact, setSubmittingNextContact] = useState(false);
 
   // New Activity in Detail Modal
   const [activityForm, setActivityForm] = useState<{ type: ActivityType; title: string; description: string }>({
@@ -178,6 +187,53 @@ export const CustomersPage: React.FC = () => {
     }
   };
 
+  const handleScheduleNextContact = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedCustomer || !nextContactDate) return;
+    try {
+      setSubmittingNextContact(true);
+      await api.nextContacts.create({
+        customerId: selectedCustomer.id,
+        contactDate: nextContactDate,
+        notes: nextContactNotes.trim() ? nextContactNotes : null,
+      });
+      setNextContactDate('');
+      setNextContactNotes('');
+      const refreshed = await api.customers.getById(selectedCustomer.id);
+      setSelectedCustomer(refreshed);
+      await loadCustomers();
+    } catch (err: any) {
+      alert(err.message || 'Error al agendar próximo contacto');
+    } finally {
+      setSubmittingNextContact(false);
+    }
+  };
+
+  const handleToggleNextContactDone = async (contactId: string, currentDone: boolean) => {
+    if (!selectedCustomer) return;
+    try {
+      await api.nextContacts.update(contactId, { done: !currentDone });
+      const refreshed = await api.customers.getById(selectedCustomer.id);
+      setSelectedCustomer(refreshed);
+      await loadCustomers();
+    } catch (err: any) {
+      alert(err.message || 'Error al actualizar contacto');
+    }
+  };
+
+  const handleDeleteNextContact = async (contactId: string) => {
+    if (!selectedCustomer) return;
+    if (!confirm('¿Deseas eliminar este contacto agendado?')) return;
+    try {
+      await api.nextContacts.delete(contactId);
+      const refreshed = await api.customers.getById(selectedCustomer.id);
+      setSelectedCustomer(refreshed);
+      await loadCustomers();
+    } catch (err: any) {
+      alert(err.message || 'Error al eliminar contacto');
+    }
+  };
+
   const filteredCustomers = customers.filter(c => {
     const matchesSearch =
       c.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -298,6 +354,28 @@ export const CustomersPage: React.FC = () => {
                 )}
               </div>
 
+              {/* Upcoming Contact in Mobile Card */}
+              {customer.nextContacts && customer.nextContacts.length > 0 && (
+                (() => {
+                  const nc = customer.nextContacts[0];
+                  const d = new Date(nc.contactDate);
+                  const isOverdue = !nc.done && d < new Date();
+                  return (
+                    <div className={`flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-xl border ${
+                      isOverdue
+                        ? 'bg-rose-50 border-rose-200 text-rose-800'
+                        : 'bg-amber-50 border-amber-200 text-amber-900'
+                    }`}>
+                      <CalendarClock className={`h-3.5 w-3.5 ${isOverdue ? 'text-rose-600' : 'text-amber-600'} shrink-0`} />
+                      <span className="truncate">
+                        Próx: <strong>{d.toLocaleDateString('es-ES', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</strong>
+                        {isOverdue && <span className="ml-1 font-bold text-rose-600">(Vencido)</span>}
+                      </span>
+                    </div>
+                  );
+                })()
+              )}
+
               {/* Tags & Counts */}
               <div className="flex items-center justify-between gap-2 text-xs pt-1 border-t border-slate-100">
                 <div className="flex flex-wrap gap-1 min-w-0">
@@ -359,6 +437,7 @@ export const CustomersPage: React.FC = () => {
                 <th className="py-3.5 px-6">Empresa & Cargo</th>
                 <th className="py-3.5 px-6">Contacto</th>
                 <th className="py-3.5 px-6">Estado</th>
+                <th className="py-3.5 px-6">Próx. Contacto</th>
                 <th className="py-3.5 px-6">Etiquetas</th>
                 <th className="py-3.5 px-6 text-center">Tratos / Ventas</th>
                 <th className="py-3.5 px-6 text-right">Acciones</th>
@@ -367,7 +446,7 @@ export const CustomersPage: React.FC = () => {
             <tbody className="divide-y divide-slate-100 text-slate-700">
               {filteredCustomers.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-12 text-center text-slate-400">
+                  <td colSpan={8} className="py-12 text-center text-slate-400">
                     No se encontraron clientes que coincidan con la búsqueda.
                   </td>
                 </tr>
@@ -422,6 +501,37 @@ export const CustomersPage: React.FC = () => {
                     {/* Status */}
                     <td className="py-4 px-6">
                       <Badge variant="customer" value={customer.status} />
+                    </td>
+
+                    {/* Next Contact */}
+                    <td className="py-4 px-6">
+                      {customer.nextContacts && customer.nextContacts.length > 0 ? (
+                        (() => {
+                          const nc = customer.nextContacts[0];
+                          const d = new Date(nc.contactDate);
+                          const isOverdue = !nc.done && d < new Date();
+                          return (
+                            <div className="space-y-0.5">
+                              <div className="flex items-center gap-1.5">
+                                <CalendarClock className={`h-3.5 w-3.5 shrink-0 ${isOverdue ? 'text-rose-500' : 'text-brand-600'}`} />
+                                <span className={`text-xs font-semibold ${isOverdue ? 'text-rose-600 font-bold' : 'text-slate-700'}`}>
+                                  {d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: '2-digit' })}
+                                </span>
+                              </div>
+                              <p className="text-[11px] text-slate-400">
+                                {d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })} hs
+                                {isOverdue && (
+                                  <span className="ml-1 text-[10px] font-bold px-1.5 py-0.2 rounded bg-rose-100 text-rose-700">
+                                    Vencido
+                                  </span>
+                                )}
+                              </p>
+                            </div>
+                          );
+                        })()
+                      ) : (
+                        <span className="text-xs text-slate-400">Sin agendar</span>
+                      )}
                     </td>
 
                     {/* Tags */}
@@ -669,6 +779,158 @@ export const CustomersPage: React.FC = () => {
               <div className="space-y-1">
                 <p className="text-xs text-slate-400 font-semibold uppercase">Estado del Cliente</p>
                 <Badge variant="customer" value={selectedCustomer.status} />
+              </div>
+            </div>
+
+            {/* Próximos Contactos / Agendamiento Section */}
+            <div className="bg-slate-50/80 p-4 rounded-2xl border border-slate-200 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200/80 pb-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-xl bg-brand-100 text-brand-700 shrink-0">
+                    <CalendarClock className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-slate-900 text-sm">Próximos Contactos Agendados</h4>
+                    <p className="text-xs text-slate-500">Agendar una fecha futura para comunicarse con este contacto</p>
+                  </div>
+                </div>
+                {selectedCustomer.nextContacts && selectedCustomer.nextContacts.filter(nc => !nc.done).length > 0 && (
+                  <span className="text-xs font-semibold px-2.5 py-1 bg-amber-100 text-amber-800 rounded-full w-fit">
+                    {selectedCustomer.nextContacts.filter(nc => !nc.done).length} pendiente(s)
+                  </span>
+                )}
+              </div>
+
+              {/* Formulario de agendamiento */}
+              <form onSubmit={handleScheduleNextContact} className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-2xs space-y-3">
+                <p className="text-xs font-bold text-slate-700 uppercase tracking-wider">Agendar Nueva Comunicación Futura</p>
+                <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
+                  <div className="sm:col-span-4 space-y-1">
+                    <label className="block text-[11px] font-semibold text-slate-600">
+                      Fecha y Hora Futura *
+                    </label>
+                    <input
+                      type="datetime-local"
+                      required
+                      value={nextContactDate}
+                      onChange={(e) => setNextContactDate(e.target.value)}
+                      className="w-full text-xs bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 font-medium"
+                    />
+                  </div>
+                  <div className="sm:col-span-5 space-y-1">
+                    <label className="block text-[11px] font-semibold text-slate-600">
+                      Motivo / Detalle (opcional)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Ej: Llamar para presentar propuesta, seguimiento..."
+                      value={nextContactNotes}
+                      onChange={(e) => setNextContactNotes(e.target.value)}
+                      className="w-full text-xs bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
+                    />
+                  </div>
+                  <div className="sm:col-span-3">
+                    <button
+                      type="submit"
+                      disabled={submittingNextContact || !nextContactDate}
+                      className="w-full inline-flex items-center justify-center gap-1.5 bg-brand-600 hover:bg-brand-700 text-white text-xs font-semibold px-3.5 py-2 rounded-lg transition-colors shadow-xs disabled:opacity-50"
+                    >
+                      <Calendar className="h-3.5 w-3.5" />
+                      {submittingNextContact ? 'Agendando...' : 'Agendar Contacto'}
+                    </button>
+                  </div>
+                </div>
+              </form>
+
+              {/* Lista de Próximos Contactos */}
+              <div className="space-y-2">
+                {!selectedCustomer.nextContacts || selectedCustomer.nextContacts.length === 0 ? (
+                  <div className="text-center py-4 bg-white border border-dashed border-slate-200 rounded-xl">
+                    <CalendarClock className="h-6 w-6 text-slate-300 mx-auto mb-1" />
+                    <p className="text-xs text-slate-400">No hay contactos futuros programados para este cliente.</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 max-h-60 overflow-y-auto pr-1">
+                    {selectedCustomer.nextContacts.map((nc) => {
+                      const contactDateObj = new Date(nc.contactDate);
+                      const isOverdue = !nc.done && contactDateObj < new Date();
+                      return (
+                        <div
+                          key={nc.id}
+                          className={`p-3 rounded-xl border transition-all flex flex-col justify-between gap-2 ${
+                            nc.done
+                              ? 'bg-slate-50 border-slate-200 opacity-75'
+                              : isOverdue
+                              ? 'bg-rose-50/50 border-rose-200 shadow-2xs'
+                              : 'bg-white border-slate-200 shadow-2xs'
+                          }`}
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex items-start gap-2.5 min-w-0">
+                              <button
+                                type="button"
+                                onClick={() => handleToggleNextContactDone(nc.id, nc.done)}
+                                title={nc.done ? 'Marcar como pendiente' : 'Marcar como realizado'}
+                                className={`mt-0.5 p-1 rounded-md transition-colors shrink-0 ${
+                                  nc.done
+                                    ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
+                                    : isOverdue
+                                    ? 'bg-rose-100 text-rose-700 hover:bg-rose-200'
+                                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                }`}
+                              >
+                                {nc.done ? <Check className="h-3.5 w-3.5 font-bold" /> : <Square className="h-3.5 w-3.5" />}
+                              </button>
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span className={`text-xs font-bold ${nc.done ? 'line-through text-slate-400' : 'text-slate-800'}`}>
+                                    {contactDateObj.toLocaleDateString('es-ES', {
+                                      weekday: 'short',
+                                      day: 'numeric',
+                                      month: 'short',
+                                      year: 'numeric',
+                                      hour: '2-digit',
+                                      minute: '2-digit',
+                                    })}
+                                  </span>
+                                  {nc.done ? (
+                                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800">
+                                      Realizado
+                                    </span>
+                                  ) : isOverdue ? (
+                                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-rose-100 text-rose-800">
+                                      Vencido
+                                    </span>
+                                  ) : (
+                                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-100 text-blue-800">
+                                      Pendiente
+                                    </span>
+                                  )}
+                                </div>
+                                {nc.notes && (
+                                  <p className={`text-xs mt-1 ${nc.done ? 'line-through text-slate-400' : 'text-slate-600'}`}>
+                                    {nc.notes}
+                                  </p>
+                                )}
+                                <p className="text-[11px] text-slate-400 mt-1">
+                                  Asignado a: <span className="font-medium text-slate-600">{nc.user?.name || 'Vendedor'}</span>
+                                </p>
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteNextContact(nc.id)}
+                              title="Eliminar contacto agendado"
+                              className="p-1 rounded-md text-slate-400 hover:text-rose-600 hover:bg-slate-100 transition-colors shrink-0"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             </div>
 

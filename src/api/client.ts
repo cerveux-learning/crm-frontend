@@ -27,6 +27,9 @@ import type {
   ChangePasswordInput,
   CreateUserInput,
   UpdateUserInput,
+  NextContact,
+  CreateNextContactInput,
+  UpdateNextContactInput,
 } from '../types';
 
 const BASE_URL = import.meta.env.VITE_API_URL || '/api';
@@ -119,11 +122,25 @@ export const api = {
       if (status) params.append('status', status);
       return fetchJSON<Customer[]>(`/customers?${params.toString()}`);
     },
-    getById: (id: string) => fetchJSON<Customer & { deals: Deal[]; sales: SaleOrder[]; activities: Activity[] }>(`/customers/${id}`),
+    getById: (id: string) => fetchJSON<Customer & { deals: Deal[]; sales: SaleOrder[]; activities: Activity[]; nextContacts: NextContact[] }>(`/customers/${id}`),
     create: (data: CreateCustomerInput) => fetchJSON<Customer>('/customers', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string, data: UpdateCustomerInput) => fetchJSON<Customer>(`/customers/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     delete: (id: string) => fetchJSON<void>(`/customers/${id}`, { method: 'DELETE' }),
     addActivity: (id: string, data: CreateActivityInput) => fetchJSON<Activity>(`/customers/${id}/activities`, { method: 'POST', body: JSON.stringify(data) }),
+  },
+
+  nextContacts: {
+    getAll: (filters?: { customerId?: string; userId?: string; done?: boolean }) => {
+      const params = new URLSearchParams();
+      if (filters?.customerId) params.append('customerId', filters.customerId);
+      if (filters?.userId) params.append('userId', filters.userId);
+      if (filters?.done !== undefined) params.append('done', String(filters.done));
+      return fetchJSON<NextContact[]>(`/next-contacts?${params.toString()}`);
+    },
+    getById: (id: string) => fetchJSON<NextContact>(`/next-contacts/${id}`),
+    create: (data: CreateNextContactInput) => fetchJSON<NextContact>('/next-contacts', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string, data: UpdateNextContactInput) => fetchJSON<NextContact>(`/next-contacts/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    delete: (id: string) => fetchJSON<void>(`/next-contacts/${id}`, { method: 'DELETE' }),
   },
 
   deals: {

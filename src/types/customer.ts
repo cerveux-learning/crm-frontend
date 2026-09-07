@@ -1,3 +1,5 @@
+import type { NextContact } from './nextContact';
+
 export type CustomerStatus = 'LEAD' | 'PROSPECT' | 'CUSTOMER' | 'INACTIVE';
 
 export interface Customer {
@@ -17,7 +19,9 @@ export interface Customer {
     deals?: number;
     sales?: number;
     activities?: number;
+    nextContacts?: number;
   };
+  nextContacts?: NextContact[];
 }
 
 export interface CreateCustomerInput {
@@ -32,4 +36,4 @@ export interface CreateCustomerInput {
   notes?: string | null;
 }
 
-export interface UpdateCustomerInput extends Partial<CreateCustomerInput> {}
+export interface UpdateCustomerInput extends Partial<CreateCustomerInput> { }

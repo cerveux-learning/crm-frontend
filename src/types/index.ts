@@ -6,3 +6,4 @@ export * from './stockMovement';
 export * from './sale';
 export * from './activity';
 export * from './analytics';
+export * from './nextContact';
