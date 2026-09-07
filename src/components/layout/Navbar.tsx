@@ -36,6 +36,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         : 'Emisión de presupuestos, facturas y cobros de todos los vendedores',
     },
     users: { title: 'Gestión de Usuarios y Permisos', subtitle: 'Administración de cuentas, accesos y roles' },
+    'next-contacts': { title: 'Mi Agenda de Contactos', subtitle: 'Seguimientos pendientes, de hoy y programados' },
   };
 
   const current = titles[activeTab] || titles.dashboard;

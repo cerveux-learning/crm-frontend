@@ -137,6 +137,13 @@ export const api = {
       if (filters?.done !== undefined) params.append('done', String(filters.done));
       return fetchJSON<NextContact[]>(`/next-contacts?${params.toString()}`);
     },
+    getMyAgenda: (includeDone?: boolean) => {
+      const params = new URLSearchParams();
+      if (includeDone) params.append('includeDone', 'true');
+      return fetchJSON<{ overdue: NextContact[]; today: NextContact[]; upcoming: NextContact[] }>(
+        `/next-contacts/my-agenda?${params.toString()}`
+      );
+    },
     getById: (id: string) => fetchJSON<NextContact>(`/next-contacts/${id}`),
     create: (data: CreateNextContactInput) => fetchJSON<NextContact>('/next-contacts', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string, data: UpdateNextContactInput) => fetchJSON<NextContact>(`/next-contacts/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
