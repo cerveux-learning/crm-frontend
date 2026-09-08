@@ -168,10 +168,10 @@ const ContactCard: React.FC<ContactCardProps> = ({ contact, onMarkDone, isLoadin
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// SectionColumn
+// SectionTabContent
 // ─────────────────────────────────────────────────────────────────────────────
 
-interface SectionColumnProps {
+interface SectionTabContentProps {
   title: string;
   subtitle: string;
   icon: React.ReactNode;
@@ -179,11 +179,12 @@ interface SectionColumnProps {
   accent: 'red' | 'blue' | 'green';
   headerClass: string;
   countBadgeClass: string;
+  emptyMessage: string;
   onMarkDone: (id: string, done: boolean) => void;
   loadingId: string | null;
 }
 
-const SectionColumn: React.FC<SectionColumnProps> = ({
+const SectionTabContent: React.FC<SectionTabContentProps> = ({
   title,
   subtitle,
   icon,
@@ -191,36 +192,37 @@ const SectionColumn: React.FC<SectionColumnProps> = ({
   accent,
   headerClass,
   countBadgeClass,
+  emptyMessage,
   onMarkDone,
   loadingId,
 }) => {
   return (
-    <div className="flex flex-col min-h-0">
-      {/* Column header */}
-      <div className={`rounded-xl p-4 mb-4 border ${headerClass}`}>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            {icon}
-            <div>
-              <h2 className="font-bold text-sm text-white">{title}</h2>
-              <p className="text-xs text-slate-400 mt-0.5">{subtitle}</p>
-            </div>
+    <div className="space-y-4">
+      {/* Section info banner */}
+      <div className={`rounded-xl p-4 border ${headerClass} flex items-center justify-between`}>
+        <div className="flex items-center gap-3">
+          <div className="shrink-0">{icon}</div>
+          <div>
+            <h2 className="font-bold text-sm sm:text-base text-slate-900">{title}</h2>
+            <p className="text-xs text-slate-500 mt-0.5 capitalize">{subtitle}</p>
           </div>
-          <span className={`inline-flex items-center justify-center h-7 min-w-[1.75rem] px-2 rounded-full text-xs font-bold ${countBadgeClass}`}>
-            {contacts.length}
-          </span>
         </div>
+        <span className={`inline-flex items-center justify-center h-7 min-w-[1.75rem] px-2.5 rounded-full text-xs font-bold ${countBadgeClass}`}>
+          {contacts.length} {contacts.length === 1 ? 'contacto' : 'contactos'}
+        </span>
       </div>
 
-      {/* Cards */}
-      <div className="space-y-3">
-        {contacts.length === 0 ? (
-          <div className="text-center py-10 px-4">
-            <div className="text-slate-600 text-4xl mb-2">✓</div>
-            <p className="text-slate-500 text-sm">Sin contactos en esta sección</p>
+      {/* Cards Grid */}
+      {contacts.length === 0 ? (
+        <div className="text-center py-16 px-4 bg-white rounded-2xl border border-dashed border-slate-200">
+          <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-400 mb-3">
+            <CheckCircle2 className="h-6 w-6 text-emerald-500" />
           </div>
-        ) : (
-          contacts.map((c) => (
+          <p className="text-slate-600 font-medium text-sm">{emptyMessage}</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {contacts.map((c) => (
             <ContactCard
               key={c.id}
               contact={c}
@@ -228,9 +230,9 @@ const SectionColumn: React.FC<SectionColumnProps> = ({
               isLoading={loadingId === c.id}
               accent={accent}
             />
-          ))
-        )}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 };
@@ -239,7 +241,10 @@ const SectionColumn: React.FC<SectionColumnProps> = ({
 // NextContactsPage
 // ─────────────────────────────────────────────────────────────────────────────
 
+type AgendaTab = 'overdue' | 'today' | 'upcoming';
+
 export const NextContactsPage: React.FC = () => {
+  const [activeTab, setActiveTab] = useState<AgendaTab>('today');
   const [overdue, setOverdue] = useState<NextContact[]>([]);
   const [today, setToday] = useState<NextContact[]>([]);
   const [upcoming, setUpcoming] = useState<NextContact[]>([]);
@@ -284,8 +289,6 @@ export const NextContactsPage: React.FC = () => {
       setLoadingId(null);
     }
   };
-
-  const totalCount = overdue.length + today.length + upcoming.length;
 
   return (
     <div className="space-y-6">
@@ -335,30 +338,56 @@ export const NextContactsPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Summary strip */}
+      {/* Summary strip as interactive cards */}
       {!loading && (
         <div className="grid grid-cols-3 gap-3 sm:gap-4">
-          <div className="bg-rose-50 border border-rose-100 rounded-xl p-3 sm:p-4 flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setActiveTab('overdue')}
+            className={`bg-rose-50 border rounded-xl p-3 sm:p-4 flex items-center gap-3 text-left transition-all duration-200 cursor-pointer ${
+              activeTab === 'overdue'
+                ? 'border-rose-400 ring-2 ring-rose-400/30 shadow-xs'
+                : 'border-rose-100 hover:border-rose-300'
+            }`}
+          >
             <AlertTriangle className="h-5 w-5 text-rose-500 shrink-0" />
             <div>
               <p className="text-2xl font-bold text-rose-600">{overdue.length}</p>
-              <p className="text-xs text-rose-500 font-medium">Atrasadas</p>
+              <p className="text-xs text-rose-600/90 font-medium">Atrasadas</p>
             </div>
-          </div>
-          <div className="bg-brand-50 border border-brand-100 rounded-xl p-3 sm:p-4 flex items-center gap-3">
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('today')}
+            className={`bg-brand-50 border rounded-xl p-3 sm:p-4 flex items-center gap-3 text-left transition-all duration-200 cursor-pointer ${
+              activeTab === 'today'
+                ? 'border-brand-400 ring-2 ring-brand-400/30 shadow-xs'
+                : 'border-brand-100 hover:border-brand-300'
+            }`}
+          >
             <Calendar className="h-5 w-5 text-brand-500 shrink-0" />
             <div>
               <p className="text-2xl font-bold text-brand-600">{today.length}</p>
-              <p className="text-xs text-brand-500 font-medium">Hoy</p>
+              <p className="text-xs text-brand-600/90 font-medium">Hoy</p>
             </div>
-          </div>
-          <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-3 sm:p-4 flex items-center gap-3">
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('upcoming')}
+            className={`bg-emerald-50 border rounded-xl p-3 sm:p-4 flex items-center gap-3 text-left transition-all duration-200 cursor-pointer ${
+              activeTab === 'upcoming'
+                ? 'border-emerald-400 ring-2 ring-emerald-400/30 shadow-xs'
+                : 'border-emerald-100 hover:border-emerald-300'
+            }`}
+          >
             <Sparkles className="h-5 w-5 text-emerald-500 shrink-0" />
             <div>
               <p className="text-2xl font-bold text-emerald-600">{upcoming.length}</p>
-              <p className="text-xs text-emerald-500 font-medium">Próximas</p>
+              <p className="text-xs text-emerald-600/90 font-medium">Próximas</p>
             </div>
-          </div>
+          </button>
         </div>
       )}
 
@@ -370,72 +399,139 @@ export const NextContactsPage: React.FC = () => {
         </div>
       )}
 
-      {/* Loading skeleton */}
-      {loading && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {[0, 1, 2].map((i) => (
-            <div key={i} className="space-y-3">
-              <div className="h-20 rounded-xl bg-slate-200 animate-pulse" />
-              {[0, 1].map((j) => (
-                <div key={j} className="h-28 rounded-xl bg-slate-100 animate-pulse" />
-              ))}
-            </div>
-          ))}
+      {/* Tabs selector */}
+      {!loading && !error && (
+        <div className="flex items-center gap-1.5 sm:gap-2 p-1.5 bg-slate-200/60 rounded-2xl w-full sm:w-fit overflow-x-auto">
+          <button
+            id="tab-overdue"
+            type="button"
+            onClick={() => setActiveTab('overdue')}
+            className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-200 whitespace-nowrap cursor-pointer ${
+              activeTab === 'overdue'
+                ? 'bg-white text-rose-600 shadow-xs'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <AlertTriangle className={`h-4 w-4 ${activeTab === 'overdue' ? 'text-rose-500' : 'text-slate-400'}`} />
+            <span>Atrasadas</span>
+            <span
+              className={`inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-bold ${
+                activeTab === 'overdue'
+                  ? 'bg-rose-100 text-rose-700'
+                  : 'bg-slate-300/70 text-slate-600'
+              }`}
+            >
+              {overdue.length}
+            </span>
+          </button>
+
+          <button
+            id="tab-today"
+            type="button"
+            onClick={() => setActiveTab('today')}
+            className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-200 whitespace-nowrap cursor-pointer ${
+              activeTab === 'today'
+                ? 'bg-white text-brand-600 shadow-xs'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <Calendar className={`h-4 w-4 ${activeTab === 'today' ? 'text-brand-500' : 'text-slate-400'}`} />
+            <span>Hoy</span>
+            <span
+              className={`inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-bold ${
+                activeTab === 'today'
+                  ? 'bg-brand-100 text-brand-700'
+                  : 'bg-slate-300/70 text-slate-600'
+              }`}
+            >
+              {today.length}
+            </span>
+          </button>
+
+          <button
+            id="tab-upcoming"
+            type="button"
+            onClick={() => setActiveTab('upcoming')}
+            className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-200 whitespace-nowrap cursor-pointer ${
+              activeTab === 'upcoming'
+                ? 'bg-white text-emerald-600 shadow-xs'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <Sparkles className={`h-4 w-4 ${activeTab === 'upcoming' ? 'text-emerald-500' : 'text-slate-400'}`} />
+            <span>Próximas</span>
+            <span
+              className={`inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-bold ${
+                activeTab === 'upcoming'
+                  ? 'bg-emerald-100 text-emerald-700'
+                  : 'bg-slate-300/70 text-slate-600'
+              }`}
+            >
+              {upcoming.length}
+            </span>
+          </button>
         </div>
       )}
 
-      {/* Main content: 3 columns */}
+      {/* Loading skeleton */}
+      {loading && (
+        <div className="space-y-4">
+          <div className="h-11 w-72 rounded-2xl bg-slate-200/70 animate-pulse" />
+          <div className="h-16 rounded-xl bg-slate-200/60 animate-pulse" />
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="h-36 rounded-xl bg-slate-100 animate-pulse" />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Main content: Active tab */}
       {!loading && !error && (
         <>
-          {totalCount === 0 ? (
-            <div className="text-center py-20">
-              <div className="inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-100 mb-4">
-                <CalendarClock className="h-8 w-8 text-slate-400" />
-              </div>
-              <h3 className="text-lg font-semibold text-slate-700 mb-1">Todo al día</h3>
-              <p className="text-slate-500 text-sm">No tenés contactos pendientes en tu agenda.</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-              {/* OVERDUE */}
-              <SectionColumn
-                title="Atrasadas"
-                subtitle="Contactos que pasaron su fecha"
-                icon={<AlertTriangle className="h-5 w-5 text-rose-400" />}
-                contacts={overdue}
-                accent="red"
-                headerClass="bg-rose-500/5 border-rose-500/20"
-                countBadgeClass={overdue.length > 0 ? 'bg-rose-500 text-white' : 'bg-slate-200 text-slate-500'}
-                onMarkDone={handleMarkDone}
-                loadingId={loadingId}
-              />
+          {activeTab === 'overdue' && (
+            <SectionTabContent
+              title="Atrasadas"
+              subtitle="Contactos que pasaron su fecha sin completarse"
+              icon={<AlertTriangle className="h-5 w-5 text-rose-500" />}
+              contacts={overdue}
+              accent="red"
+              headerClass="bg-rose-50/70 border-rose-200/80"
+              countBadgeClass={overdue.length > 0 ? 'bg-rose-500 text-white' : 'bg-slate-200 text-slate-600'}
+              emptyMessage="¡Sin contactos atrasados! Estás al día con tus compromisos anteriores."
+              onMarkDone={handleMarkDone}
+              loadingId={loadingId}
+            />
+          )}
 
-              {/* TODAY */}
-              <SectionColumn
-                title="Hoy"
-                subtitle={new Date().toLocaleDateString('es-AR', { weekday: 'long', day: '2-digit', month: 'long' })}
-                icon={<Calendar className="h-5 w-5 text-brand-400" />}
-                contacts={today}
-                accent="blue"
-                headerClass="bg-brand-500/5 border-brand-500/20"
-                countBadgeClass={today.length > 0 ? 'bg-brand-500 text-white' : 'bg-slate-200 text-slate-500'}
-                onMarkDone={handleMarkDone}
-                loadingId={loadingId}
-              />
+          {activeTab === 'today' && (
+            <SectionTabContent
+              title="Hoy"
+              subtitle={new Date().toLocaleDateString('es-AR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })}
+              icon={<Calendar className="h-5 w-5 text-brand-500" />}
+              contacts={today}
+              accent="blue"
+              headerClass="bg-brand-50/70 border-brand-200/80"
+              countBadgeClass={today.length > 0 ? 'bg-brand-500 text-white' : 'bg-slate-200 text-slate-600'}
+              emptyMessage="Sin contactos pendientes para hoy."
+              onMarkDone={handleMarkDone}
+              loadingId={loadingId}
+            />
+          )}
 
-              {/* UPCOMING */}
-              <SectionColumn
-                title="Próximas"
-                subtitle="Contactos programados a futuro"
-                icon={<Sparkles className="h-5 w-5 text-emerald-400" />}
-                contacts={upcoming}
-                accent="green"
-                headerClass="bg-emerald-500/5 border-emerald-500/20"
-                countBadgeClass={upcoming.length > 0 ? 'bg-emerald-500 text-white' : 'bg-slate-200 text-slate-500'}
-                onMarkDone={handleMarkDone}
-                loadingId={loadingId}
-              />
-            </div>
+          {activeTab === 'upcoming' && (
+            <SectionTabContent
+              title="Próximas"
+              subtitle="Contactos programados a futuro"
+              icon={<Sparkles className="h-5 w-5 text-emerald-500" />}
+              contacts={upcoming}
+              accent="green"
+              headerClass="bg-emerald-50/70 border-emerald-200/80"
+              countBadgeClass={upcoming.length > 0 ? 'bg-emerald-500 text-white' : 'bg-slate-200 text-slate-600'}
+              emptyMessage="Sin contactos programados para las próximas fechas."
+              onMarkDone={handleMarkDone}
+              loadingId={loadingId}
+            />
           )}
         </>
       )}
