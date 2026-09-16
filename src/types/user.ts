@@ -6,6 +6,7 @@ export interface User {
   email: string;
   role: UserRole;
   active: boolean;
+  tokenVersion?: number;
   createdAt: string | Date;
   updatedAt: string | Date;
 }
@@ -19,6 +20,7 @@ export interface AuthUser {
 
 export interface AuthResponse {
   token: string;
+  refreshToken: string;
   user: AuthUser;
 }
 

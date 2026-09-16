@@ -7,7 +7,7 @@ interface AuthContextType {
   token: string | null;
   loading: boolean;
   login: (data: LoginInput) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void> | void;
   changePassword: (data: ChangePasswordInput) => Promise<void>;
   isAdmin: boolean;
   isSeller: boolean;
@@ -59,14 +59,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (data: LoginInput) => {
     const res = await api.auth.login(data);
     tokenStorage.set(res.token);
+    tokenStorage.setRefreshToken(res.refreshToken);
     setToken(res.token);
     setUser(res.user);
   };
 
-  const logout = () => {
-    tokenStorage.clear();
-    setToken(null);
-    setUser(null);
+  const logout = async () => {
+    try {
+      await api.auth.logout();
+    } catch {
+      // Ignorar errores de red al cerrar sesión
+    } finally {
+      tokenStorage.clear();
+      setToken(null);
+      setUser(null);
+    }
   };
 
   const changePassword = async (data: ChangePasswordInput) => {

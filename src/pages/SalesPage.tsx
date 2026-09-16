@@ -13,6 +13,7 @@ import {
   Layers,
   UserCheck,
   User as UserIcon,
+  Ban,
 } from 'lucide-react';
 import { api } from '../api/client.js';
 import { Badge } from '../components/common/Badge.js';
@@ -41,6 +42,7 @@ export const SalesPage: React.FC = () => {
   const [notes, setNotes] = useState<string>('Condiciones de pago: Transferencia a 30 días.');
   const [applyTax, setApplyTax] = useState<boolean>(true);
   const [taxRatePercent, setTaxRatePercent] = useState<number>(21);
+  const [useCostPrice, setUseCostPrice] = useState(false);
   const [items, setItems] = useState<CreateSaleOrderItemInput[]>([
     { productId: '', description: '', quantity: 1, unitPrice: 0, discount: 0 },
   ]);
@@ -96,6 +98,7 @@ export const SalesPage: React.FC = () => {
     setAssignedUserId(user?.id || '');
     setApplyTax(true);
     setTaxRatePercent(21);
+    setUseCostPrice(false);
     if (products.length > 0 && products[0]) {
       const first = products[0];
       setItems([
@@ -122,7 +125,7 @@ export const SalesPage: React.FC = () => {
     if (selected && updated[index]) {
       updated[index].productId = selected.id;
       updated[index].description = selected.name;
-      updated[index].unitPrice = selected.unitPrice;
+      updated[index].unitPrice = useCostPrice ? (selected.cost ?? 0) : selected.unitPrice;
     } else if (updated[index]) {
       updated[index].productId = '';
     }
@@ -178,6 +181,7 @@ export const SalesPage: React.FC = () => {
         dueDate: dueDate ? new Date(dueDate) : null,
         taxRate,
         notes,
+        useCostPrice: isAdmin && saleType === 'INVOICE' && useCostPrice,
         items: items.map(it => ({
           ...it,
           quantity: Number(it.quantity),
@@ -211,6 +215,16 @@ export const SalesPage: React.FC = () => {
       await loadData();
     } catch (err: any) {
       alert(err.message || 'Error al marcar como pagada');
+    }
+  };
+
+  const handleCancelInvoice = async (saleId: string) => {
+    if (!confirm('¿Deseas anular y cancelar esta factura? El stock de los productos será devuelto automáticamente al inventario.')) return;
+    try {
+      await api.sales.updateStatus(saleId, 'CANCELLED');
+      await loadData();
+    } catch (err: any) {
+      alert(err.message || 'Error al cancelar la factura');
     }
   };
 
@@ -444,7 +458,7 @@ export const SalesPage: React.FC = () => {
                   </button>
                 )}
 
-                {sale.type === 'INVOICE' && sale.status !== 'PAID' && (
+                {sale.type === 'INVOICE' && sale.status !== 'PAID' && sale.status !== 'CANCELLED' && (
                   <button
                     onClick={() => handleMarkAsPaid(sale.id)}
                     className="inline-flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors"
@@ -455,7 +469,18 @@ export const SalesPage: React.FC = () => {
                   </button>
                 )}
 
-                {isAdmin && (
+                {sale.type === 'INVOICE' && sale.status !== 'CANCELLED' && (
+                  <button
+                    onClick={() => handleCancelInvoice(sale.id)}
+                    className="inline-flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-lg bg-rose-50 text-rose-700 hover:bg-rose-100 transition-colors"
+                    title="Anular Factura y devolver stock"
+                  >
+                    <Ban className="h-3.5 w-3.5" />
+                    Anular
+                  </button>
+                )}
+
+                {sale.type === 'QUOTE' && isAdmin && (
                   <button
                     onClick={() => handleDelete(sale.id)}
                     className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition-colors"
@@ -598,7 +623,7 @@ export const SalesPage: React.FC = () => {
                           </button>
                         )}
 
-                        {sale.type === 'INVOICE' && sale.status !== 'PAID' && (
+                        {sale.type === 'INVOICE' && sale.status !== 'PAID' && sale.status !== 'CANCELLED' && (
                           <button
                             onClick={() => handleMarkAsPaid(sale.id)}
                             className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-slate-100 transition-colors"
@@ -608,7 +633,17 @@ export const SalesPage: React.FC = () => {
                           </button>
                         )}
 
-                        {isAdmin && (
+                        {sale.type === 'INVOICE' && sale.status !== 'CANCELLED' && (
+                          <button
+                            onClick={() => handleCancelInvoice(sale.id)}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-slate-100 transition-colors"
+                            title="Anular Factura y devolver stock"
+                          >
+                            <Ban className="h-4 w-4" />
+                          </button>
+                        )}
+
+                        {sale.type === 'QUOTE' && isAdmin && (
                           <button
                             onClick={() => handleDelete(sale.id)}
                             className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-slate-100 transition-colors"
@@ -643,7 +678,11 @@ export const SalesPage: React.FC = () => {
               </label>
               <select
                 value={saleType}
-                onChange={(e) => setSaleType(e.target.value as SaleType)}
+                onChange={(e) => {
+                  const nextType = e.target.value as SaleType;
+                  setSaleType(nextType);
+                  if (nextType !== 'INVOICE') setUseCostPrice(false);
+                }}
                 className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm bg-white font-semibold focus:outline-none focus:ring-2 focus:ring-brand-500/20"
               >
                 <option value="QUOTE">Cotización (Presupuesto)</option>
@@ -715,6 +754,34 @@ export const SalesPage: React.FC = () => {
                   className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20"
                 />
               </div>
+
+              {saleType === 'INVOICE' && (
+                <div className="sm:col-span-2 flex items-end">
+                  <label className="flex items-center gap-2.5 cursor-pointer select-none rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-2.5 w-full">
+                    <input
+                      type="checkbox"
+                      checked={useCostPrice}
+                      onChange={(e) => {
+                        const enabled = e.target.checked;
+                        setUseCostPrice(enabled);
+                        if (enabled) {
+                          setItems(currentItems => currentItems.map(item => {
+                            const product = products.find(p => p.id === item.productId);
+                            return product
+                              ? { ...item, unitPrice: product.cost ?? 0, discount: 0 }
+                              : { ...item, discount: 0 };
+                          }));
+                        }
+                      }}
+                      className="w-4 h-4 rounded text-amber-600 focus:ring-amber-500 border-amber-300"
+                    />
+                    <span>
+                      <span className="block text-xs font-bold text-amber-900">Venta al costo</span>
+                      <span className="block text-[11px] text-amber-700">Usa el costo registrado; requiere productos de catálogo y sin descuentos.</span>
+                    </span>
+                  </label>
+                </div>
+              )}
             </div>
           )}
 
@@ -749,7 +816,7 @@ export const SalesPage: React.FC = () => {
                         onChange={(e) => handleProductSelect(index, e.target.value)}
                         className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs bg-white focus:outline-none"
                       >
-                        <option value="">Personalizado</option>
+                        <option value="" disabled={useCostPrice}>Personalizado</option>
                         {products.map((p) => (
                           <option key={p.id} value={p.id}>
                             {p.code} - {p.name}
@@ -790,6 +857,7 @@ export const SalesPage: React.FC = () => {
                         step="0.01"
                         value={item.unitPrice}
                         onChange={(e) => handleItemChange(index, 'unitPrice', Number(e.target.value))}
+                        disabled={useCostPrice}
                         className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs focus:outline-none"
                       />
                     </div>
@@ -802,6 +870,7 @@ export const SalesPage: React.FC = () => {
                         max="100"
                         value={item.discount || 0}
                         onChange={(e) => handleItemChange(index, 'discount', Number(e.target.value))}
+                        disabled={useCostPrice}
                         className="w-full px-2 py-1.5 rounded-lg border border-slate-200 text-xs focus:outline-none"
                       />
                     </div>

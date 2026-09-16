@@ -34,14 +34,51 @@ import type {
 
 const BASE_URL = import.meta.env.VITE_API_URL || '/api';
 const TOKEN_KEY = 'crm_auth_token';
+const REFRESH_TOKEN_KEY = 'crm_refresh_token';
 
 export const tokenStorage = {
   get: () => localStorage.getItem(TOKEN_KEY),
   set: (token: string) => localStorage.setItem(TOKEN_KEY, token),
-  clear: () => localStorage.removeItem(TOKEN_KEY),
+  getRefreshToken: () => localStorage.getItem(REFRESH_TOKEN_KEY),
+  setRefreshToken: (token: string) => localStorage.setItem(REFRESH_TOKEN_KEY, token),
+  clear: () => {
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(REFRESH_TOKEN_KEY);
+  },
 };
 
-async function fetchJSON<T>(url: string, options?: RequestInit): Promise<T> {
+let refreshPromise: Promise<string | null> | null = null;
+
+async function requestNewToken(): Promise<string | null> {
+  const refreshToken = tokenStorage.getRefreshToken();
+  if (!refreshToken) {
+    return null;
+  }
+
+  try {
+    const res = await fetch(`${BASE_URL}/auth/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken }),
+    });
+
+    if (!res.ok) {
+      return null;
+    }
+
+    const data = (await res.json()) as AuthResponse;
+    if (data.token && data.refreshToken) {
+      tokenStorage.set(data.token);
+      tokenStorage.setRefreshToken(data.refreshToken);
+      return data.token;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+async function fetchJSON<T>(url: string, options?: RequestInit, isRetry = false): Promise<T> {
   const token = tokenStorage.get();
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -58,12 +95,24 @@ async function fetchJSON<T>(url: string, options?: RequestInit): Promise<T> {
   });
 
   if (!res.ok) {
-    if (res.status === 401) {
-      // If unauthorized and it wasn't the login endpoint, trigger logout
-      if (!url.startsWith('/auth/login')) {
+    if (res.status === 401 && !isRetry && !url.startsWith('/auth/login') && !url.startsWith('/auth/refresh')) {
+      // Attempt token refresh
+      if (!refreshPromise) {
+        refreshPromise = requestNewToken().finally(() => {
+          refreshPromise = null;
+        });
+      }
+
+      const newToken = await refreshPromise;
+      if (newToken) {
+        return fetchJSON<T>(url, options, true);
+      } else {
         tokenStorage.clear();
         window.dispatchEvent(new Event('auth:unauthorized'));
       }
+    } else if (res.status === 401 && (url.startsWith('/auth/refresh') || isRetry)) {
+      tokenStorage.clear();
+      window.dispatchEvent(new Event('auth:unauthorized'));
     }
 
     let errorMessage = `HTTP Error ${res.status}`;
@@ -72,7 +121,7 @@ async function fetchJSON<T>(url: string, options?: RequestInit): Promise<T> {
       if (data.error) {
         errorMessage = typeof data.error === 'string' ? data.error : JSON.stringify(data.error);
       }
-    } catch {}
+    } catch { }
     throw new Error(errorMessage);
   }
 
@@ -86,6 +135,8 @@ async function fetchJSON<T>(url: string, options?: RequestInit): Promise<T> {
 export const api = {
   auth: {
     login: (data: LoginInput) => fetchJSON<AuthResponse>('/auth/login', { method: 'POST', body: JSON.stringify(data) }),
+    refreshToken: (refreshToken: string) => fetchJSON<AuthResponse>('/auth/refresh', { method: 'POST', body: JSON.stringify({ refreshToken }) }),
+    logout: () => fetchJSON<{ message: string }>('/auth/logout', { method: 'POST' }),
     getMe: () => fetchJSON<AuthUser>('/auth/me'),
     changePassword: (data: ChangePasswordInput) => fetchJSON<{ message: string }>('/auth/change-password', { method: 'PUT', body: JSON.stringify(data) }),
   },

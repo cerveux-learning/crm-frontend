@@ -64,6 +64,8 @@ export interface CreateSaleOrderInput {
   taxRate?: number;
   discountAmount?: number;
   notes?: string | null;
+  /** Disponible únicamente para facturas emitidas por administradores. */
+  useCostPrice?: boolean;
   items: CreateSaleOrderItemInput[];
 }
 

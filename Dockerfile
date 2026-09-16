@@ -4,6 +4,10 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
+# API URL passed at build time (defaults to empty so Vite falls back to /api, proxied by Nginx)
+ARG VITE_API_URL=""
+ENV VITE_API_URL=$VITE_API_URL
+
 # Copy manifest
 COPY package.json package-lock.json* ./
 
