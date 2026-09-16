@@ -27,6 +27,16 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({ isOpen
       return;
     }
 
+    if (newPassword.length > 72) {
+      setError('La nueva contraseña no puede superar los 72 caracteres.');
+      return;
+    }
+
+    if (currentPassword.length > 72) {
+      setError('La contraseña actual no puede superar los 72 caracteres.');
+      return;
+    }
+
     if (newPassword !== confirmPassword) {
       setError('Las nuevas contraseñas no coinciden.');
       return;
@@ -90,6 +100,7 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({ isOpen
             <input
               type="password"
               required
+              maxLength={72}
               value={currentPassword}
               onChange={(e) => setCurrentPassword(e.target.value)}
               placeholder="••••••••"
@@ -106,9 +117,10 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({ isOpen
             type="password"
             required
             minLength={6}
+            maxLength={72}
             value={newPassword}
             onChange={(e) => setNewPassword(e.target.value)}
-            placeholder="Mínimo 6 caracteres"
+            placeholder="Mínimo 6 caracteres (máx. 72)"
             className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20"
           />
         </div>
@@ -121,6 +133,7 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({ isOpen
             type="password"
             required
             minLength={6}
+            maxLength={72}
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
             placeholder="Repite la nueva contraseña"

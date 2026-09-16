@@ -93,6 +93,7 @@ export const LoginPage: React.FC = () => {
                 <input
                   type="password"
                   required
+                  maxLength={72}
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}

@@ -63,6 +63,10 @@ export const UsersPage: React.FC = () => {
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
     setCreateError(null);
+    if (createForm.password.length > 72) {
+      setCreateError('La contraseña no puede superar los 72 caracteres');
+      return;
+    }
     try {
       setSubmitting(true);
       await api.users.create(createForm);
@@ -101,8 +105,14 @@ export const UsersPage: React.FC = () => {
         role: editForm.role,
         active: editForm.active,
       };
-      if (editForm.password && editForm.password.trim().length >= 6) {
-        payload.password = editForm.password;
+      if (editForm.password) {
+        if (editForm.password.length > 72) {
+          setEditError('La contraseña no puede superar los 72 caracteres');
+          return;
+        }
+        if (editForm.password.trim().length >= 6) {
+          payload.password = editForm.password;
+        }
       }
       await api.users.update(editingUser.id, payload);
       setIsEditModalOpen(false);
@@ -436,7 +446,8 @@ export const UsersPage: React.FC = () => {
               type="password"
               required
               minLength={6}
-              placeholder="Mínimo 6 caracteres"
+              maxLength={72}
+              placeholder="Mínimo 6 caracteres (máx. 72)"
               value={createForm.password}
               onChange={(e) => setCreateForm({ ...createForm, password: e.target.value })}
               className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20"
@@ -541,7 +552,8 @@ export const UsersPage: React.FC = () => {
               <Key className="h-4 w-4 absolute left-3.5 top-3 text-slate-400" />
               <input
                 type="password"
-                placeholder="Dejar vacío para no cambiar"
+                maxLength={72}
+                placeholder="Dejar vacío para no cambiar (máx. 72)"
                 value={editForm.password || ''}
                 onChange={(e) => setEditForm({ ...editForm, password: e.target.value })}
                 className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20"
