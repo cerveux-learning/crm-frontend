@@ -202,12 +202,13 @@ export const api = {
   },
 
   deals: {
-    getAll: (filters?: { stage?: string; priority?: string; customerId?: string; search?: string }) => {
+    getAll: (filters?: { stage?: string; priority?: string; customerId?: string; search?: string; userId?: string }) => {
       const params = new URLSearchParams();
       if (filters?.stage) params.append('stage', filters.stage);
       if (filters?.priority) params.append('priority', filters.priority);
       if (filters?.customerId) params.append('customerId', filters.customerId);
       if (filters?.search) params.append('search', filters.search);
+      if (filters?.userId) params.append('userId', filters.userId);
       return fetchJSON<Deal[]>(`/deals?${params.toString()}`);
     },
     getById: (id: string) => fetchJSON<Deal & { customer: Customer; activities: Activity[] }>(`/deals/${id}`),

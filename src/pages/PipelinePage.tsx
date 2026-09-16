@@ -9,6 +9,7 @@ import {
   ArrowLeft,
   Trash2,
   Filter,
+  User as UserIcon,
 } from 'lucide-react';
 import { api } from '../api/client.js';
 import { Badge } from '../components/common/Badge.js';
@@ -250,12 +251,22 @@ export const PipelinePage: React.FC = () => {
                           </h4>
 
                           {/* Customer & Company */}
-                          <div className="flex items-center gap-1.5 text-xs text-slate-500 mb-3">
+                          <div className="flex items-center gap-1.5 text-xs text-slate-500 mb-2">
                             <Building className="h-3.5 w-3.5 shrink-0 text-slate-400" />
                             <span className="truncate">
                               {deal.customer?.company ? `${deal.customer.company} (${deal.customer.name})` : deal.customer?.name}
                             </span>
                           </div>
+
+                          {/* Assigned Seller */}
+                          {deal.user && (
+                            <div className="flex items-center gap-1.5 text-xs text-slate-500 mb-3">
+                              <UserIcon className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+                              <span className="truncate font-medium text-slate-600">
+                                {deal.user.name}
+                              </span>
+                            </div>
+                          )}
 
                           {/* Amount */}
                           <div className="flex items-center justify-between py-2 border-t border-slate-100">
