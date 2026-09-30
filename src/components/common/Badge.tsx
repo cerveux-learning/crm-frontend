@@ -126,6 +126,7 @@ export const Badge: React.FC<BadgeProps> = ({ children, variant = 'default', val
     OTHER: 'Otro',
     QUOTE: 'Cotización',
     INVOICE: 'Factura',
+    CONSIGNMENT: 'Consignación',
   };
 
   const displayText = value && labelMap[value] ? labelMap[value] : text;

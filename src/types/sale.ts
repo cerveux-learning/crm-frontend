@@ -9,7 +9,7 @@ export type SaleStatus =
   | 'PAID' 
   | 'CANCELLED';
 
-export type SaleType = 'QUOTE' | 'INVOICE';
+export type SaleType = 'QUOTE' | 'INVOICE' | 'CONSIGNMENT';
 
 export interface SaleOrderItem {
   id: string;

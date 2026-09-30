@@ -977,7 +977,7 @@ export const CustomersPage: React.FC = () => {
                         <div key={sale.id} className="p-3 bg-white border border-slate-200 rounded-xl flex items-center justify-between text-xs">
                           <div>
                             <p className="font-bold text-slate-900 font-mono">{sale.orderNumber}</p>
-                            <p className="text-slate-500">${sale.total.toLocaleString()} · {sale.type === 'QUOTE' ? 'Cotización' : 'Factura'}</p>
+                            <p className="text-slate-500">${sale.total.toLocaleString()} · {sale.type === 'QUOTE' ? 'Cotización' : sale.type === 'CONSIGNMENT' ? 'Consignación' : 'Factura'}</p>
                           </div>
                           <Badge variant="sale" value={sale.status} />
                         </div>

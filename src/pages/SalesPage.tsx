@@ -14,6 +14,7 @@ import {
   UserCheck,
   User as UserIcon,
   Ban,
+  Package,
 } from 'lucide-react';
 import { api } from '../api/client.js';
 import { Badge } from '../components/common/Badge.js';
@@ -99,6 +100,11 @@ export const SalesPage: React.FC = () => {
     setApplyTax(true);
     setTaxRatePercent(21);
     setUseCostPrice(false);
+    if (defaultType === 'CONSIGNMENT') {
+      setNotes('Mercadería entregada en consignación. Sujeta a liquidación o devolución.');
+    } else {
+      setNotes('Condiciones de pago: Transferencia a 30 días.');
+    }
     if (products.length > 0 && products[0]) {
       const first = products[0];
       setItems([
@@ -228,6 +234,16 @@ export const SalesPage: React.FC = () => {
     }
   };
 
+  const handleCancelConsignment = async (saleId: string) => {
+    if (!confirm('¿Deseas anular esta consignación? El stock de los productos será devuelto automáticamente al inventario.')) return;
+    try {
+      await api.sales.updateStatus(saleId, 'CANCELLED');
+      await loadData();
+    } catch (err: any) {
+      alert(err.message || 'Error al anular la consignación');
+    }
+  };
+
   const handleDelete = async (id: string) => {
     if (!confirm('¿Seguro que deseas eliminar este documento?')) return;
     try {
@@ -293,6 +309,7 @@ export const SalesPage: React.FC = () => {
               { id: 'ALL', label: 'Todos' },
               { id: 'QUOTE', label: 'Cotizaciones' },
               { id: 'INVOICE', label: 'Facturas' },
+              { id: 'CONSIGNMENT', label: 'Consignaciones' },
             ].map((t) => (
               <button
                 key={t.id}
@@ -346,6 +363,14 @@ export const SalesPage: React.FC = () => {
             Cotización
           </button>
           <button
+            onClick={() => handleOpenCreateModal('CONSIGNMENT')}
+            className="flex-1 lg:flex-none inline-flex items-center justify-center gap-1.5 bg-amber-600 hover:bg-amber-700 text-white font-semibold text-xs sm:text-sm px-3.5 py-2.5 rounded-xl transition-colors shadow-sm"
+            title="Registrar entrega de mercadería en consignación (egresa inventario sin cobro inmediato)"
+          >
+            <Package className="h-4 w-4" />
+            Consignación
+          </button>
+          <button
             onClick={() => handleOpenCreateModal('INVOICE')}
             className="flex-1 lg:flex-none inline-flex items-center justify-center gap-1.5 bg-brand-600 hover:bg-brand-700 text-white font-semibold text-xs sm:text-sm px-3.5 py-2.5 rounded-xl transition-colors shadow-sm"
           >
@@ -375,10 +400,18 @@ export const SalesPage: React.FC = () => {
                     className={`h-9 w-9 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 ${
                       sale.type === 'INVOICE'
                         ? 'bg-emerald-50 text-emerald-700'
+                        : sale.type === 'CONSIGNMENT'
+                        ? 'bg-amber-50 text-amber-700'
                         : 'bg-indigo-50 text-brand-700'
                     }`}
                   >
-                    {sale.type === 'INVOICE' ? <Receipt className="h-4 w-4" /> : <FileText className="h-4 w-4" />}
+                    {sale.type === 'INVOICE' ? (
+                      <Receipt className="h-4 w-4" />
+                    ) : sale.type === 'CONSIGNMENT' ? (
+                      <Package className="h-4 w-4" />
+                    ) : (
+                      <FileText className="h-4 w-4" />
+                    )}
                   </div>
                   <div className="min-w-0">
                     <button
@@ -391,7 +424,7 @@ export const SalesPage: React.FC = () => {
                       {sale.orderNumber}
                     </button>
                     <p className="text-xs text-slate-400">
-                      {sale.type === 'INVOICE' ? 'Factura' : 'Cotización'} · {new Date(sale.issueDate).toLocaleDateString()}
+                      {sale.type === 'INVOICE' ? 'Factura' : sale.type === 'CONSIGNMENT' ? 'Consignación' : 'Cotización'} · {new Date(sale.issueDate).toLocaleDateString()}
                     </p>
                   </div>
                 </div>
@@ -480,6 +513,27 @@ export const SalesPage: React.FC = () => {
                   </button>
                 )}
 
+                {sale.type === 'CONSIGNMENT' && sale.status !== 'PAID' && sale.status !== 'CANCELLED' && (
+                  <>
+                    <button
+                      onClick={() => handleMarkAsPaid(sale.id)}
+                      className="inline-flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors"
+                      title="Liquidar o registrar cobro de la consignación"
+                    >
+                      <CheckCircle className="h-3.5 w-3.5" />
+                      Cobrada
+                    </button>
+                    <button
+                      onClick={() => handleCancelConsignment(sale.id)}
+                      className="inline-flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-lg bg-rose-50 text-rose-700 hover:bg-rose-100 transition-colors"
+                      title="Anular consignación y devolver mercadería al inventario"
+                    >
+                      <Ban className="h-3.5 w-3.5" />
+                      Anular
+                    </button>
+                  </>
+                )}
+
                 {sale.type === 'QUOTE' && isAdmin && (
                   <button
                     onClick={() => handleDelete(sale.id)}
@@ -527,10 +581,18 @@ export const SalesPage: React.FC = () => {
                           className={`p-2 rounded-xl flex items-center justify-center shrink-0 ${
                             sale.type === 'INVOICE'
                               ? 'bg-emerald-50 text-emerald-600'
+                              : sale.type === 'CONSIGNMENT'
+                              ? 'bg-amber-50 text-amber-600'
                               : 'bg-indigo-50 text-brand-600'
                           }`}
                         >
-                          {sale.type === 'INVOICE' ? <Receipt className="h-4 w-4" /> : <FileText className="h-4 w-4" />}
+                          {sale.type === 'INVOICE' ? (
+                            <Receipt className="h-4 w-4" />
+                          ) : sale.type === 'CONSIGNMENT' ? (
+                            <Package className="h-4 w-4" />
+                          ) : (
+                            <FileText className="h-4 w-4" />
+                          )}
                         </div>
                         <div>
                           <button
@@ -543,7 +605,7 @@ export const SalesPage: React.FC = () => {
                             {sale.orderNumber}
                           </button>
                           <p className="text-[11px] text-slate-400">
-                            {sale.type === 'INVOICE' ? 'Factura' : 'Cotización'}
+                            {sale.type === 'INVOICE' ? 'Factura' : sale.type === 'CONSIGNMENT' ? 'Consignación' : 'Cotización'}
                           </p>
                         </div>
                       </div>
@@ -643,6 +705,25 @@ export const SalesPage: React.FC = () => {
                           </button>
                         )}
 
+                        {sale.type === 'CONSIGNMENT' && sale.status !== 'PAID' && sale.status !== 'CANCELLED' && (
+                          <>
+                            <button
+                              onClick={() => handleMarkAsPaid(sale.id)}
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-slate-100 transition-colors"
+                              title="Liquidar / Marcar como Cobrada"
+                            >
+                              <CheckCircle className="h-4 w-4" />
+                            </button>
+                            <button
+                              onClick={() => handleCancelConsignment(sale.id)}
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-slate-100 transition-colors"
+                              title="Anular Consignación y devolver stock"
+                            >
+                              <Ban className="h-4 w-4" />
+                            </button>
+                          </>
+                        )}
+
                         {sale.type === 'QUOTE' && isAdmin && (
                           <button
                             onClick={() => handleDelete(sale.id)}
@@ -666,11 +747,33 @@ export const SalesPage: React.FC = () => {
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        title={saleType === 'QUOTE' ? 'Nueva Cotización / Presupuesto' : 'Emitir Nueva Factura'}
-        description="Selecciona el cliente y detalla los conceptos y cantidades."
+        title={
+          saleType === 'QUOTE'
+            ? 'Nueva Cotización / Presupuesto'
+            : saleType === 'CONSIGNMENT'
+            ? 'Nuevo Remito de Mercadería en Consignación'
+            : 'Emitir Nueva Factura'
+        }
+        description={
+          saleType === 'CONSIGNMENT'
+            ? 'La mercadería se descontará inmediatamente del inventario, sin registrar cobro en el momento.'
+            : 'Selecciona el cliente y detalla los conceptos y cantidades.'
+        }
         maxWidth="4xl"
       >
         <form onSubmit={handleCreateSale} className="space-y-6">
+          {saleType === 'CONSIGNMENT' && (
+            <div className="bg-amber-500/10 border border-amber-500/20 text-amber-900 p-3.5 rounded-xl flex items-start gap-3 text-xs">
+              <Package className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-bold text-amber-950">Movimiento de Inventario en Consignación</p>
+                <p className="text-amber-800 text-[12px] mt-0.5 leading-relaxed">
+                  Los productos detallados <strong>saldrán automáticamente del stock disponible</strong>. Este remito de consignación no se computa como cobrado en caja hasta que el cliente rinda y pague la mercadería, o puede anularse para reintegrar el stock.
+                </p>
+              </div>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">
@@ -682,11 +785,17 @@ export const SalesPage: React.FC = () => {
                   const nextType = e.target.value as SaleType;
                   setSaleType(nextType);
                   if (nextType !== 'INVOICE') setUseCostPrice(false);
+                  if (nextType === 'CONSIGNMENT' && (!notes || notes === 'Condiciones de pago: Transferencia a 30 días.')) {
+                    setNotes('Mercadería entregada en consignación. Sujeta a liquidación o devolución.');
+                  } else if (nextType !== 'CONSIGNMENT' && notes === 'Mercadería entregada en consignación. Sujeta a liquidación o devolución.') {
+                    setNotes('Condiciones de pago: Transferencia a 30 días.');
+                  }
                 }}
                 className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm bg-white font-semibold focus:outline-none focus:ring-2 focus:ring-brand-500/20"
               >
                 <option value="QUOTE">Cotización (Presupuesto)</option>
                 <option value="INVOICE">Factura Comercial</option>
+                <option value="CONSIGNMENT">Mercadería en Consignación (Remito)</option>
               </select>
             </div>
 
@@ -997,7 +1106,13 @@ export const SalesPage: React.FC = () => {
               disabled={submitting}
               className="px-5 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold transition-colors shadow-sm disabled:opacity-50"
             >
-              {submitting ? 'Generando...' : saleType === 'QUOTE' ? 'Crear Cotización' : 'Emitir Factura'}
+              {submitting
+                ? 'Generando...'
+                : saleType === 'QUOTE'
+                ? 'Crear Cotización'
+                : saleType === 'CONSIGNMENT'
+                ? 'Emitir Consignación'
+                : 'Emitir Factura'}
             </button>
           </div>
         </form>
@@ -1007,12 +1122,18 @@ export const SalesPage: React.FC = () => {
       <Modal
         isOpen={isViewModalOpen}
         onClose={() => setIsViewModalOpen(false)}
-        title={viewingSale?.type === 'QUOTE' ? `Cotización ${viewingSale?.orderNumber}` : `Factura ${viewingSale?.orderNumber}`}
+        title={
+          viewingSale?.type === 'QUOTE'
+            ? `Cotización ${viewingSale?.orderNumber}`
+            : viewingSale?.type === 'CONSIGNMENT'
+            ? `Remito de Consignación ${viewingSale?.orderNumber}`
+            : `Factura ${viewingSale?.orderNumber}`
+        }
         maxWidth="2xl"
       >
         {viewingSale && (
           <div className="space-y-6 print:p-0">
-            {/* Invoice Header */}
+            {/* Document Header */}
             <div className="flex justify-between items-start border-b border-slate-200 pb-5">
               <div>
                 <div className="flex items-center gap-2">
@@ -1029,7 +1150,7 @@ export const SalesPage: React.FC = () => {
                 <Badge variant="sale" value={viewingSale.status} />
                 <p className="text-sm font-mono font-bold text-slate-900 mt-2">{viewingSale.orderNumber}</p>
                 <p className="text-xs text-slate-500">
-                  Emisión: {new Date(viewingSale.issueDate).toLocaleDateString()}
+                  {viewingSale.type === 'CONSIGNMENT' ? 'Tipo: Remito de Consignación' : `Emisión: ${new Date(viewingSale.issueDate).toLocaleDateString()}`}
                 </p>
                 {viewingSale.user && (
                   <p className="text-xs text-slate-600 mt-1 font-medium">
@@ -1039,10 +1160,21 @@ export const SalesPage: React.FC = () => {
               </div>
             </div>
 
+            {/* Consignment Banner */}
+            {viewingSale.type === 'CONSIGNMENT' && (
+              <div className="bg-amber-50 border border-amber-200 text-amber-900 px-3.5 py-2.5 rounded-xl text-xs flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Package className="h-4 w-4 text-amber-600 shrink-0" />
+                  <span className="font-bold">Comprobante de Entrega en Consignación</span>
+                </div>
+                <span className="text-[11px] text-amber-700 font-medium">Mercadería egresada de inventario</span>
+              </div>
+            )}
+
             {/* Client Info */}
             <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
               <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">
-                Facturar a:
+                {viewingSale.type === 'CONSIGNMENT' ? 'Consignatario / Destinatario:' : 'Facturar a:'}
               </p>
               <p className="font-bold text-slate-900 text-sm">{viewingSale.customer?.name}</p>
               <p className="text-xs text-slate-600">{viewingSale.customer?.company || 'Particular'}</p>
@@ -1092,7 +1224,7 @@ export const SalesPage: React.FC = () => {
                   </div>
                 )}
                 <div className="flex justify-between text-sm font-extrabold text-slate-900 pt-2 border-t border-slate-200">
-                  <span>Total Documento:</span>
+                  <span>{viewingSale.type === 'CONSIGNMENT' ? 'Total Valor Consignado:' : 'Total Documento:'}</span>
                   <span className="font-mono text-brand-600">{formatCurrency(viewingSale.total)}</span>
                 </div>
               </div>
