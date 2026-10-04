@@ -1,5 +1,6 @@
 import type { Customer } from './customer.js';
 import type { Product } from './product.js';
+import type { Commission } from './commission.js';
 
 export type SaleStatus = 
   | 'DRAFT' 
@@ -41,6 +42,7 @@ export interface SaleOrder {
   total: number;
   notes?: string | null;
   items: SaleOrderItem[];
+  commission?: Commission | null;
   createdAt: string | Date;
   updatedAt: string | Date;
 }

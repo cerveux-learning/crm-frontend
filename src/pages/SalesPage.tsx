@@ -15,11 +15,13 @@ import {
   User as UserIcon,
   Ban,
   Package,
+  Info,
 } from 'lucide-react';
 import { api } from '../api/client.js';
 import { Badge } from '../components/common/Badge.js';
 import { Modal } from '../components/common/Modal.js';
 import { useAuth } from '../context/AuthContext.js';
+import { CONSUMIDOR_FINAL_CUSTOMER_ID, RESELLER_COMMISSION_RATE } from '../config/constants.js';
 import type { SaleOrder, SaleType, Customer, Product, CreateSaleOrderItemInput } from '../types';
 
 export const SalesPage: React.FC = () => {
@@ -48,6 +50,9 @@ export const SalesPage: React.FC = () => {
     { productId: '', description: '', quantity: 1, unitPrice: 0, discount: 0 },
   ]);
   const [submitting, setSubmitting] = useState(false);
+
+  // Derived state: Reseller check
+  const isReseller = Boolean(customerId && customerId !== CONSUMIDOR_FINAL_CUSTOMER_ID);
 
   // View / Print Document Modal
   const [viewingSale, setViewingSale] = useState<SaleOrder | null>(null);
@@ -94,17 +99,59 @@ export const SalesPage: React.FC = () => {
     }
   };
 
+  const handleCustomerChange = (newCustomerId: string) => {
+    setCustomerId(newCustomerId);
+    const nextIsReseller = Boolean(newCustomerId && newCustomerId !== CONSUMIDOR_FINAL_CUSTOMER_ID);
+
+    if (nextIsReseller) {
+      setUseCostPrice(false);
+      setItems(prevItems =>
+        prevItems.map(item => {
+          let selected = products.find(p => p.id === item.productId);
+          if (!selected && products.length > 0) {
+            selected = products[0];
+          }
+          return {
+            ...item,
+            productId: selected?.id || '',
+            description: selected?.name || item.description,
+            unitPrice: selected?.cost ?? 0,
+            discount: 0,
+          };
+        })
+      );
+    } else {
+      setItems(prevItems =>
+        prevItems.map(item => {
+          const selected = products.find(p => p.id === item.productId);
+          return {
+            ...item,
+            unitPrice: selected ? (useCostPrice ? (selected.cost ?? 0) : selected.unitPrice) : item.unitPrice,
+          };
+        })
+      );
+    }
+  };
+
   const handleOpenCreateModal = (defaultType: SaleType = 'QUOTE') => {
     setSaleType(defaultType);
     setAssignedUserId(user?.id || '');
     setApplyTax(true);
     setTaxRatePercent(21);
     setUseCostPrice(false);
+
+    const initialCustomerId = customerId || (customers[0]?.id || '');
+    if (!customerId && initialCustomerId) {
+      setCustomerId(initialCustomerId);
+    }
+    const initialIsReseller = Boolean(initialCustomerId && initialCustomerId !== CONSUMIDOR_FINAL_CUSTOMER_ID);
+
     if (defaultType === 'CONSIGNMENT') {
       setNotes('Mercadería entregada en consignación. Sujeta a liquidación o devolución.');
     } else {
       setNotes('Condiciones de pago: Transferencia a 30 días.');
     }
+
     if (products.length > 0 && products[0]) {
       const first = products[0];
       setItems([
@@ -112,7 +159,7 @@ export const SalesPage: React.FC = () => {
           productId: first.id,
           description: first.name,
           quantity: 1,
-          unitPrice: first.unitPrice,
+          unitPrice: initialIsReseller ? (first.cost ?? 0) : first.unitPrice,
           discount: 0,
         },
       ]);
@@ -131,7 +178,10 @@ export const SalesPage: React.FC = () => {
     if (selected && updated[index]) {
       updated[index].productId = selected.id;
       updated[index].description = selected.name;
-      updated[index].unitPrice = useCostPrice ? (selected.cost ?? 0) : selected.unitPrice;
+      updated[index].unitPrice = (isReseller || useCostPrice) ? (selected.cost ?? 0) : selected.unitPrice;
+      if (isReseller) {
+        updated[index].discount = 0;
+      }
     } else if (updated[index]) {
       updated[index].productId = '';
     }
@@ -141,16 +191,33 @@ export const SalesPage: React.FC = () => {
   const handleItemChange = (index: number, field: keyof CreateSaleOrderItemInput, val: any) => {
     const updated = [...items];
     if (updated[index]) {
+      if (isReseller && (field === 'unitPrice' || field === 'discount')) {
+        return;
+      }
       (updated[index] as any)[field] = val;
     }
     setItems(updated);
   };
 
   const handleAddItem = () => {
-    setItems([
-      ...items,
-      { productId: '', description: '', quantity: 1, unitPrice: 0, discount: 0 },
-    ]);
+    if (isReseller && products.length > 0) {
+      const first = products[0]!;
+      setItems([
+        ...items,
+        {
+          productId: first.id,
+          description: first.name,
+          quantity: 1,
+          unitPrice: first.cost ?? 0,
+          discount: 0,
+        },
+      ]);
+    } else {
+      setItems([
+        ...items,
+        { productId: '', description: '', quantity: 1, unitPrice: 0, discount: 0 },
+      ]);
+    }
   };
 
   const handleRemoveItem = (index: number) => {
@@ -170,12 +237,21 @@ export const SalesPage: React.FC = () => {
   const taxRate = applyTax ? (Number(taxRatePercent) || 0) / 100 : 0;
   const taxAmount = subtotal * taxRate;
   const grandTotal = subtotal + taxAmount;
+  const estimatedCommission = isReseller ? subtotal * RESELLER_COMMISSION_RATE : 0;
 
   const handleCreateSale = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!customerId) {
       alert('Debes seleccionar un cliente.');
       return;
+    }
+
+    if (isReseller) {
+      const missingCatalogProduct = items.some(it => !it.productId);
+      if (missingCatalogProduct) {
+        alert('Las ventas a revendedores requieren que todos los productos se seleccionen del catálogo con su costo registrado.');
+        return;
+      }
     }
 
     try {
@@ -187,12 +263,12 @@ export const SalesPage: React.FC = () => {
         dueDate: dueDate ? new Date(dueDate) : null,
         taxRate,
         notes,
-        useCostPrice: isAdmin && saleType === 'INVOICE' && useCostPrice,
+        useCostPrice: !isReseller && isAdmin && saleType === 'INVOICE' && useCostPrice,
         items: items.map(it => ({
           ...it,
           quantity: Number(it.quantity),
           unitPrice: Number(it.unitPrice),
-          discount: Number(it.discount || 0),
+          discount: isReseller ? 0 : Number(it.discount || 0),
         })),
       });
 
@@ -433,15 +509,51 @@ export const SalesPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Customer & Seller info */}
-              <div className="bg-slate-50 p-2.5 rounded-xl text-xs space-y-1">
+              {/* Customer & Seller info + Channel & Commission */}
+              <div className="bg-slate-50 p-2.5 rounded-xl text-xs space-y-2">
                 <div className="flex justify-between items-center text-slate-800">
                   <span className="font-semibold truncate">{sale.customer?.name}</span>
                   <span className="text-slate-400 text-[11px] truncate">{sale.customer?.company || 'Particular'}</span>
                 </div>
-                {isAdmin && sale.user && (
-                  <p className="text-slate-500 text-[11px]">Vendedor: {sale.user.name}</p>
-                )}
+
+                <div className="flex items-center justify-between gap-1.5 flex-wrap pt-1.5 border-t border-slate-200/60">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {sale.customerId === CONSUMIDOR_FINAL_CUSTOMER_ID ? (
+                      <span className="inline-flex items-center text-[10px] font-semibold bg-sky-50 text-sky-700 border border-sky-200/80 px-2 py-0.5 rounded-md">
+                        Consumidor Final
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center text-[10px] font-semibold bg-purple-50 text-purple-700 border border-purple-200/80 px-2 py-0.5 rounded-md">
+                        Revendedor
+                      </span>
+                    )}
+
+                    {sale.customerId !== CONSUMIDOR_FINAL_CUSTOMER_ID && sale.type === 'INVOICE' && (
+                      <span
+                        className={`inline-flex items-center gap-0.5 text-[10px] font-medium px-1.5 py-0.5 rounded-md border ${
+                          sale.commission?.status === 'PAID'
+                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                            : sale.commission?.status === 'CANCELLED'
+                            ? 'bg-slate-100 text-slate-500 border-slate-200'
+                            : 'bg-amber-50 text-amber-700 border-amber-200'
+                        }`}
+                        title={`Comisión del 10%: ${formatCurrency(sale.commission?.commissionAmount ?? (sale.subtotal * RESELLER_COMMISSION_RATE))} (${
+                          sale.commission?.status === 'PAID' ? 'Pagada' : sale.commission?.status === 'CANCELLED' ? 'Cancelada' : 'Pendiente'
+                        })`}
+                      >
+                        <DollarSign className="h-2.5 w-2.5" />
+                        Comisión: {formatCurrency(sale.commission?.commissionAmount ?? (sale.subtotal * RESELLER_COMMISSION_RATE))}
+                        <span className="font-bold">
+                          {sale.commission?.status === 'PAID' ? '· Pagada' : sale.commission?.status === 'CANCELLED' ? '· Cancelada' : '· Pend.'}
+                        </span>
+                      </span>
+                    )}
+                  </div>
+
+                  {isAdmin && sale.user && (
+                    <p className="text-slate-500 text-[11px] ml-auto">Vendedor: {sale.user.name}</p>
+                  )}
+                </div>
               </div>
 
               {/* Total & Due date */}
@@ -611,12 +723,45 @@ export const SalesPage: React.FC = () => {
                       </div>
                     </td>
 
-                    {/* Customer */}
+                    {/* Customer & Channel */}
                     <td className="py-4 px-6">
-                      <p className="font-semibold text-slate-900 text-xs">{sale.customer?.name}</p>
-                      <p className="text-[11px] text-slate-400">
-                        {sale.customer?.company || 'Particular'}
-                      </p>
+                      <div className="flex items-center gap-2">
+                        <p className="font-semibold text-slate-900 text-xs">{sale.customer?.name}</p>
+                        {sale.customerId === CONSUMIDOR_FINAL_CUSTOMER_ID ? (
+                          <span className="inline-flex items-center text-[10px] font-semibold bg-sky-50 text-sky-700 border border-sky-200/80 px-2 py-0.5 rounded-md shrink-0">
+                            Consumidor Final
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center text-[10px] font-semibold bg-purple-50 text-purple-700 border border-purple-200/80 px-2 py-0.5 rounded-md shrink-0">
+                            Revendedor
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 mt-1">
+                        <p className="text-[11px] text-slate-400">
+                          {sale.customer?.company || 'Particular'}
+                        </p>
+                        {sale.customerId !== CONSUMIDOR_FINAL_CUSTOMER_ID && sale.type === 'INVOICE' && (
+                          <span
+                            className={`inline-flex items-center gap-0.5 text-[10px] font-medium px-1.5 py-0.5 rounded border ${
+                              sale.commission?.status === 'PAID'
+                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                : sale.commission?.status === 'CANCELLED'
+                                ? 'bg-slate-100 text-slate-500 border-slate-200'
+                                : 'bg-amber-50 text-amber-700 border-amber-200'
+                            }`}
+                            title={`Comisión de revendedor (10% sobre costo): ${formatCurrency(sale.commission?.commissionAmount ?? (sale.subtotal * RESELLER_COMMISSION_RATE))} (${
+                              sale.commission?.status === 'PAID' ? 'Liquidada / Pagada' : sale.commission?.status === 'CANCELLED' ? 'Cancelada' : 'Pendiente de cobro'
+                            })`}
+                          >
+                            <DollarSign className="h-2.5 w-2.5" />
+                            {formatCurrency(sale.commission?.commissionAmount ?? (sale.subtotal * RESELLER_COMMISSION_RATE))}
+                            <span className="font-semibold text-[9px]">
+                              ({sale.commission?.status === 'PAID' ? 'Pagada' : sale.commission?.status === 'CANCELLED' ? 'Cancelada' : 'Pendiente'})
+                            </span>
+                          </span>
+                        )}
+                      </div>
                     </td>
 
                     {/* Seller */}
@@ -806,12 +951,12 @@ export const SalesPage: React.FC = () => {
               <select
                 required
                 value={customerId}
-                onChange={(e) => setCustomerId(e.target.value)}
+                onChange={(e) => handleCustomerChange(e.target.value)}
                 className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20"
               >
                 {customers.map((c) => (
                   <option key={c.id} value={c.id}>
-                    {c.name} {c.company ? `(${c.company})` : ''}
+                    {c.name} {c.company ? `(${c.company})` : ''} {c.id === CONSUMIDOR_FINAL_CUSTOMER_ID ? '· [Consumidor Final]' : '· [Revendedor]'}
                   </option>
                 ))}
               </select>
@@ -850,6 +995,37 @@ export const SalesPage: React.FC = () => {
             )}
           </div>
 
+          {/* Informative Channel Banner */}
+          {isReseller ? (
+            <div className="bg-purple-500/10 border border-purple-500/20 text-purple-900 p-3.5 rounded-xl flex items-start gap-3 text-xs">
+              <DollarSign className="h-5 w-5 text-purple-600 shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <p className="font-bold text-purple-950">Venta a Revendedor (Canal Mayorista)</p>
+                  <span className="font-semibold bg-purple-100 text-purple-800 px-2.5 py-0.5 rounded-full text-xs">
+                    Comisión del 10%: {formatCurrency(estimatedCommission)}
+                  </span>
+                </div>
+                <p className="text-purple-800 text-[12px] mt-0.5 leading-relaxed">
+                  Precios fijados automáticamente a <strong>precio de costo</strong>. Descuentos deshabilitados (0%).
+                  {saleType === 'INVOICE'
+                    ? ` Comisión del ${Math.round(RESELLER_COMMISSION_RATE * 100)}% calculada automáticamente para el vendedor (${formatCurrency(estimatedCommission)}).`
+                    : ` Al facturar esta cotización se generará automáticamente la comisión del ${Math.round(RESELLER_COMMISSION_RATE * 100)}% (${formatCurrency(estimatedCommission)}).`}
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-sky-500/10 border border-sky-500/20 text-sky-900 p-3.5 rounded-xl flex items-start gap-3 text-xs">
+              <Info className="h-5 w-5 text-sky-600 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-bold text-sky-950">Venta a Consumidor Final</p>
+                <p className="text-sky-800 text-[12px] mt-0.5 leading-relaxed">
+                  Precios a <strong>valor de lista</strong> (con margen comercial). No genera comisión de revendedor.
+                </p>
+              </div>
+            </div>
+          )}
+
           {isAdmin && (
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
@@ -864,7 +1040,7 @@ export const SalesPage: React.FC = () => {
                 />
               </div>
 
-              {saleType === 'INVOICE' && (
+              {!isReseller && saleType === 'INVOICE' && (
                 <div className="sm:col-span-2 flex items-end">
                   <label className="flex items-center gap-2.5 cursor-pointer select-none rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-2.5 w-full">
                     <input
@@ -880,13 +1056,20 @@ export const SalesPage: React.FC = () => {
                               ? { ...item, unitPrice: product.cost ?? 0, discount: 0 }
                               : { ...item, discount: 0 };
                           }));
+                        } else {
+                          setItems(currentItems => currentItems.map(item => {
+                            const product = products.find(p => p.id === item.productId);
+                            return product
+                              ? { ...item, unitPrice: product.unitPrice }
+                              : item;
+                          }));
                         }
                       }}
                       className="w-4 h-4 rounded text-amber-600 focus:ring-amber-500 border-amber-300"
                     />
                     <span>
-                      <span className="block text-xs font-bold text-amber-900">Venta al costo</span>
-                      <span className="block text-[11px] text-amber-700">Usa el costo registrado; requiere productos de catálogo y sin descuentos.</span>
+                      <span className="block text-xs font-bold text-amber-900">Venta al costo (Excepción Admin)</span>
+                      <span className="block text-[11px] text-amber-700">Usa el costo registrado para consumidor final; sin descuentos.</span>
                     </span>
                   </label>
                 </div>
@@ -925,10 +1108,10 @@ export const SalesPage: React.FC = () => {
                         onChange={(e) => handleProductSelect(index, e.target.value)}
                         className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs bg-white focus:outline-none"
                       >
-                        <option value="" disabled={useCostPrice}>Personalizado</option>
+                        <option value="" disabled={isReseller || useCostPrice}>Personalizado</option>
                         {products.map((p) => (
                           <option key={p.id} value={p.id}>
-                            {p.code} - {p.name}
+                            {p.code} - {p.name} {isReseller ? `(Costo: $${p.cost ?? 0})` : ''}
                           </option>
                         ))}
                       </select>
@@ -966,8 +1149,11 @@ export const SalesPage: React.FC = () => {
                         step="0.01"
                         value={item.unitPrice}
                         onChange={(e) => handleItemChange(index, 'unitPrice', Number(e.target.value))}
-                        disabled={useCostPrice}
-                        className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs focus:outline-none"
+                        disabled={isReseller || useCostPrice}
+                        title={isReseller ? 'Fijado al precio de costo del producto para revendedores' : undefined}
+                        className={`w-full px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs focus:outline-none ${
+                          isReseller || useCostPrice ? 'bg-slate-100 text-slate-500 cursor-not-allowed font-medium' : ''
+                        }`}
                       />
                     </div>
 
@@ -979,8 +1165,11 @@ export const SalesPage: React.FC = () => {
                         max="100"
                         value={item.discount || 0}
                         onChange={(e) => handleItemChange(index, 'discount', Number(e.target.value))}
-                        disabled={useCostPrice}
-                        className="w-full px-2 py-1.5 rounded-lg border border-slate-200 text-xs focus:outline-none"
+                        disabled={isReseller || useCostPrice}
+                        title={isReseller ? 'Descuentos no permitidos en ventas a revendedores' : undefined}
+                        className={`w-full px-2 py-1.5 rounded-lg border border-slate-200 text-xs focus:outline-none ${
+                          isReseller || useCostPrice ? 'bg-slate-100 text-slate-500 cursor-not-allowed font-medium' : ''
+                        }`}
                       />
                     </div>
 
@@ -1082,6 +1271,15 @@ export const SalesPage: React.FC = () => {
                 <span>Subtotal:</span>
                 <span className="font-mono font-semibold">{formatCurrency(subtotal)}</span>
               </div>
+              {isReseller && (
+                <div className="flex justify-between text-purple-700 bg-purple-50 px-2.5 py-1.5 rounded-lg font-medium text-xs border border-purple-100">
+                  <span className="flex items-center gap-1">
+                    <DollarSign className="h-3 w-3" />
+                    Comisión Estimada Vendedor (10%):
+                  </span>
+                  <span className="font-mono font-bold text-purple-900">{formatCurrency(estimatedCommission)}</span>
+                </div>
+              )}
               <div className="flex justify-between text-slate-600">
                 <span>IVA {applyTax ? `(${taxRatePercent}%)` : '(Sin IVA)'}:</span>
                 <span className="font-mono font-semibold">{applyTax ? formatCurrency(taxAmount) : '$0'}</span>
@@ -1172,13 +1370,40 @@ export const SalesPage: React.FC = () => {
             )}
 
             {/* Client Info */}
-            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
-              <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">
-                {viewingSale.type === 'CONSIGNMENT' ? 'Consignatario / Destinatario:' : 'Facturar a:'}
-              </p>
-              <p className="font-bold text-slate-900 text-sm">{viewingSale.customer?.name}</p>
-              <p className="text-xs text-slate-600">{viewingSale.customer?.company || 'Particular'}</p>
-              <p className="text-xs text-slate-500">{viewingSale.customer?.email}</p>
+            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 flex flex-col sm:flex-row justify-between items-start gap-3">
+              <div>
+                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">
+                  {viewingSale.type === 'CONSIGNMENT' ? 'Consignatario / Destinatario:' : 'Facturar a:'}
+                </p>
+                <p className="font-bold text-slate-900 text-sm">{viewingSale.customer?.name}</p>
+                <p className="text-xs text-slate-600">{viewingSale.customer?.company || 'Particular'}</p>
+                <p className="text-xs text-slate-500">{viewingSale.customer?.email}</p>
+              </div>
+
+              <div className="sm:text-right space-y-1">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-0.5">
+                  Canal Comercial:
+                </span>
+                {viewingSale.customerId === CONSUMIDOR_FINAL_CUSTOMER_ID ? (
+                  <span className="inline-flex items-center text-xs font-semibold bg-sky-50 text-sky-700 border border-sky-200 px-2.5 py-1 rounded-lg">
+                    Consumidor Final
+                  </span>
+                ) : (
+                  <div className="space-y-1">
+                    <span className="inline-flex items-center text-xs font-semibold bg-purple-50 text-purple-700 border border-purple-200 px-2.5 py-1 rounded-lg">
+                      Revendedor (Precio Costo)
+                    </span>
+                    {viewingSale.type === 'INVOICE' && (
+                      <p className="text-[11px] text-purple-900 font-medium">
+                        Comisión (10%): {formatCurrency(viewingSale.commission?.commissionAmount ?? (viewingSale.subtotal * RESELLER_COMMISSION_RATE))}
+                        <span className={`ml-1 font-bold ${viewingSale.commission?.status === 'PAID' ? 'text-emerald-600' : 'text-amber-600'}`}>
+                          ({viewingSale.commission?.status === 'PAID' ? 'Liquidada' : viewingSale.commission?.status === 'CANCELLED' ? 'Cancelada' : 'Pendiente'})
+                        </span>
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Items Table */}
@@ -1212,6 +1437,14 @@ export const SalesPage: React.FC = () => {
                   <span>Subtotal:</span>
                   <span className="font-mono font-semibold">{formatCurrency(viewingSale.subtotal)}</span>
                 </div>
+                {viewingSale.customerId !== CONSUMIDOR_FINAL_CUSTOMER_ID && viewingSale.type === 'INVOICE' && (
+                  <div className="flex justify-between text-purple-700 bg-purple-50 px-2 py-1 rounded font-medium text-[11px] border border-purple-100">
+                    <span>Comisión Vendedor (10%):</span>
+                    <span className="font-mono font-bold text-purple-900">
+                      {formatCurrency(viewingSale.commission?.commissionAmount ?? (viewingSale.subtotal * RESELLER_COMMISSION_RATE))}
+                    </span>
+                  </div>
+                )}
                 {viewingSale.taxAmount > 0 ? (
                   <div className="flex justify-between text-slate-600">
                     <span>IVA ({Math.round(viewingSale.taxRate * 100)}%):</span>

@@ -23,9 +23,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
-
   const titles: Record<NavigationTab, { title: string; subtitle: string }> = {
-    dashboard: { title: 'Dashboard General', subtitle: 'Resumen ejecutivo de ventas y embudo de conversión' },
+    dashboard: { title: 'Panel Comercial — Canal Revendedores', subtitle: 'Métricas de facturación al costo, comisiones y distribución' },
     pipeline: { title: 'Pipeline de Oportunidades', subtitle: 'Seguimiento visual de tratos por etapas' },
     customers: { title: 'Clientes y Prospectos', subtitle: 'Directorio de contactos, empresas e interacciones' },
     products: { title: 'Catálogo de Productos y Servicios', subtitle: 'Gestión de inventario y precios' },
@@ -37,6 +36,7 @@ export const Navbar: React.FC<NavbarProps> = ({
     },
     users: { title: 'Gestión de Usuarios y Permisos', subtitle: 'Administración de cuentas, accesos y roles' },
     'next-contacts': { title: 'Mi Agenda de Contactos', subtitle: 'Seguimientos pendientes, de hoy y programados' },
+    commissions: { title: 'Comisiones por Cobrar', subtitle: 'Estado de comisiones pendientes y liquidadas por vendedor' },
   };
 
   const current = titles[activeTab] || titles.dashboard;

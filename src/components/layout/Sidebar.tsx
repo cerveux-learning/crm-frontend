@@ -13,10 +13,11 @@ import {
   Eye,
   X,
   CalendarClock,
+  DollarSign,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.js';
 
-export type NavigationTab = 'dashboard' | 'pipeline' | 'customers' | 'products' | 'sales' | 'users' | 'next-contacts';
+export type NavigationTab = 'dashboard' | 'pipeline' | 'customers' | 'products' | 'sales' | 'users' | 'next-contacts' | 'commissions';
 
 interface SidebarProps {
   activeTab: NavigationTab;
@@ -96,6 +97,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
       id: 'next-contacts',
       label: 'Mi Agenda',
       icon: <CalendarClock className="h-5 w-5 shrink-0" />,
+      allowedRoles: ['ADMIN', 'SELLER'],
+    },
+    {
+      id: 'commissions',
+      label: 'Comisiones',
+      icon: <DollarSign className="h-5 w-5 shrink-0" />,
       allowedRoles: ['ADMIN', 'SELLER'],
     },
     {

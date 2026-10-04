@@ -12,6 +12,12 @@ export interface DashboardMetrics {
   dealsLostCount: number;
   winRate: number; // percentage
   averageTicket: number;
+  /** Total comisiones generadas (PENDING + PAID) para canal revendedor */
+  totalCommissionsResellers: number;
+  /** Monto de comisiones en estado PENDING (por pagar) */
+  pendingCommissionsAmount: number;
+  /** Monto de comisiones en estado PAID (ya liquidadas) */
+  paidCommissionsAmount: number;
 }
 
 export interface MonthlySalesData {

@@ -30,6 +30,12 @@ import type {
   NextContact,
   CreateNextContactInput,
   UpdateNextContactInput,
+  Commission,
+  CommissionFilters,
+  CommissionSummary,
+  PayCommissionInput,
+  BatchPayCommissionInput,
+  BatchPayResult,
 } from '../types';
 
 const BASE_URL = import.meta.env.VITE_API_URL || '/api';
@@ -263,4 +269,33 @@ export const api = {
     convertQuoteToInvoice: (id: string) => fetchJSON<SaleOrder>(`/sales/${id}/convert-to-invoice`, { method: 'POST' }),
     delete: (id: string) => fetchJSON<void>(`/sales/${id}`, { method: 'DELETE' }),
   },
+
+  commissions: {
+    getAll: (filters?: CommissionFilters) => {
+      const params = new URLSearchParams();
+      if (filters?.status && filters.status !== 'ALL') params.append('status', filters.status);
+      if (filters?.userId) params.append('userId', filters.userId);
+      if (filters?.startDate) params.append('startDate', filters.startDate);
+      if (filters?.endDate) params.append('endDate', filters.endDate);
+      if (filters?.search) params.append('search', filters.search);
+      return fetchJSON<Commission[]>(`/commissions?${params.toString()}`);
+    },
+    getSummary: (userId?: string) => {
+      const params = new URLSearchParams();
+      if (userId) params.append('userId', userId);
+      const query = params.toString();
+      return fetchJSON<CommissionSummary>(`/commissions/summary${query ? `?${query}` : ''}`);
+    },
+    pay: (id: string, data: PayCommissionInput) =>
+      fetchJSON<Commission>(`/commissions/${id}/pay`, {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+      }),
+    batchPay: (data: BatchPayCommissionInput) =>
+      fetchJSON<BatchPayResult>('/commissions/batch-pay', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+  },
 };
+

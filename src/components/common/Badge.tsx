@@ -1,9 +1,9 @@
 import React from 'react';
-import type { CustomerStatus, DealStage, DealPriority, SaleStatus, ProductCategory } from '../../types';
+import type { CustomerStatus, DealStage, DealPriority, SaleStatus, ProductCategory, CommissionStatus } from '../../types';
 
 interface BadgeProps {
   children?: React.ReactNode;
-  variant?: 'customer' | 'stage' | 'priority' | 'sale' | 'category' | 'default';
+  variant?: 'customer' | 'stage' | 'priority' | 'sale' | 'category' | 'commission' | 'default';
   value?: string;
   className?: string;
 }
@@ -98,10 +98,23 @@ export const Badge: React.FC<BadgeProps> = ({ children, variant = 'default', val
         styleClasses = 'bg-slate-100 text-slate-700 border-slate-200';
         break;
     }
+  } else if (variant === 'commission') {
+    switch (value as CommissionStatus) {
+      case 'PENDING':
+        styleClasses = 'bg-amber-50 text-amber-700 border-amber-200 font-semibold';
+        break;
+      case 'PAID':
+        styleClasses = 'bg-emerald-50 text-emerald-700 border-emerald-200 font-semibold';
+        break;
+      case 'CANCELLED':
+        styleClasses = 'bg-slate-100 text-slate-500 border-slate-200';
+        break;
+    }
   }
 
   // Label mappings for Spanish display
   const labelMap: Record<string, string> = {
+    PENDING: 'Pendiente',
     LEAD: 'Lead',
     PROSPECT: 'Prospecto',
     CUSTOMER: 'Cliente',

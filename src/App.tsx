@@ -10,6 +10,7 @@ import { ProductsPage } from './pages/ProductsPage.js';
 import { SalesPage } from './pages/SalesPage.js';
 import { UsersPage } from './pages/UsersPage.js';
 import { NextContactsPage } from './pages/NextContactsPage.js';
+import { CommissionsPage } from './pages/CommissionsPage.js';
 
 function MainLayout() {
   const { user, loading, isAdmin, isViewer } = useAuth();
@@ -100,6 +101,7 @@ function MainLayout() {
           {!isViewer && activeTab === 'sales' && <SalesPage key={refreshKey} />}
           {isAdmin && activeTab === 'users' && <UsersPage key={refreshKey} />}
           {!isViewer && activeTab === 'next-contacts' && <NextContactsPage key={refreshKey} />}
+          {!isViewer && activeTab === 'commissions' && <CommissionsPage key={refreshKey} />}
         </main>
       </div>
     </div>
