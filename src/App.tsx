@@ -101,7 +101,7 @@ function MainLayout() {
           {!isViewer && activeTab === 'sales' && <SalesPage key={refreshKey} />}
           {isAdmin && activeTab === 'users' && <UsersPage key={refreshKey} />}
           {!isViewer && activeTab === 'next-contacts' && <NextContactsPage key={refreshKey} />}
-          {!isViewer && activeTab === 'commissions' && <CommissionsPage key={refreshKey} />}
+          {activeTab === 'commissions' && <CommissionsPage key={refreshKey} />}
         </main>
       </div>
     </div>

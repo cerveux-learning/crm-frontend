@@ -103,7 +103,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       id: 'commissions',
       label: 'Comisiones',
       icon: <DollarSign className="h-5 w-5 shrink-0" />,
-      allowedRoles: ['ADMIN', 'SELLER'],
+      allowedRoles: ['ADMIN', 'SELLER', 'VIEWER'],
     },
     {
       id: 'users',
