@@ -796,7 +796,7 @@ export const CommissionsPage: React.FC = () => {
                   <div className="h-8 w-8 rounded-lg bg-brand-600 text-white flex items-center justify-center font-bold">
                     <Layers className="h-4 w-4" />
                   </div>
-                  <h2 className="font-extrabold text-xl text-slate-900">CRM Pro S.A.</h2>
+                  <h2 className="font-extrabold text-xl text-slate-900">She Nutrición</h2>
                 </div>
                 <p className="text-xs text-slate-500 mt-1">Av. Libertador 1500, Oficina 401</p>
                 <p className="text-xs text-slate-500">Canal Revendedores Oficial</p>

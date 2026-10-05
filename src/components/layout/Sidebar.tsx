@@ -139,7 +139,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <Layers className="h-5 w-5" />
             </div>
             <div>
-              <span className="font-bold text-white tracking-tight text-lg">CRM Pro</span>
+              <span className="font-bold text-white tracking-tight text-lg">She Nutrición</span>
               <span className="block text-[11px] text-brand-400 font-semibold uppercase tracking-wider">
                 Control de Ventas
               </span>

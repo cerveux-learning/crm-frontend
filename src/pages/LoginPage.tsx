@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Layers, Lock, Mail, ArrowRight, ShieldCheck, UserCheck, Eye, AlertCircle } from 'lucide-react';
+import { Layers, Lock, Mail, ArrowRight, AlertCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext.js';
 
 export const LoginPage: React.FC = () => {
@@ -22,20 +22,6 @@ export const LoginPage: React.FC = () => {
     }
   };
 
-  const handleQuickLogin = async (demoEmail: string, demoPass: string) => {
-    setEmail(demoEmail);
-    setPassword(demoPass);
-    setError(null);
-    try {
-      setLoading(true);
-      await login({ email: demoEmail, password: demoPass });
-    } catch (err: any) {
-      setError(err.message || 'Error al iniciar sesión.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
     <div className="min-h-screen bg-slate-950 flex flex-col justify-center items-center p-4 sm:p-6 relative overflow-hidden">
       {/* Background glowing gradients */}
@@ -48,7 +34,7 @@ export const LoginPage: React.FC = () => {
           <div className="inline-flex h-14 w-14 rounded-2xl bg-gradient-to-tr from-brand-600 to-indigo-500 items-center justify-center text-white shadow-xl shadow-brand-500/25 mb-3">
             <Layers className="h-7 w-7" />
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">CRM Pro</h1>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">She Nutrición</h1>
           <p className="text-slate-400 text-xs sm:text-sm mt-1">
             Gestión Comercial y Control de Accesos por Rol
           </p>
@@ -68,7 +54,7 @@ export const LoginPage: React.FC = () => {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+              <label htmlFor="email" className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">
                 Correo Electrónico
               </label>
               <div className="relative">
@@ -76,7 +62,7 @@ export const LoginPage: React.FC = () => {
                 <input
                   type="email"
                   required
-                  placeholder="tu.email@crmpro.local"
+                  placeholder="tu.email@shenutricion.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full pl-10 pr-4 py-2.5 bg-slate-800/80 border border-slate-700/80 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-brand-500/40 focus:border-brand-500"
@@ -85,7 +71,7 @@ export const LoginPage: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+              <label htmlFor="password" className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">
                 Contraseña
               </label>
               <div className="relative">
@@ -117,90 +103,6 @@ export const LoginPage: React.FC = () => {
               )}
             </button>
           </form>
-
-          {/* Quick Demo Access */}
-          <div className="mt-8 pt-6 border-t border-slate-800">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-3 text-center">
-              Accesos Rápidos de Prueba (Roles)
-            </p>
-            <div className="grid grid-cols-1 gap-2">
-              <button
-                type="button"
-                onClick={() => handleQuickLogin('admin@crmpro.local', 'admin123')}
-                className="flex items-center justify-between p-3 bg-slate-800/50 hover:bg-slate-800 border border-slate-700/50 rounded-xl text-left transition-colors group active:scale-[0.98]"
-              >
-                <div className="flex items-center gap-2.5">
-                  <div className="p-1.5 rounded-lg bg-indigo-500/20 text-indigo-400 group-hover:bg-indigo-500 group-hover:text-white transition-colors">
-                    <ShieldCheck className="h-4 w-4" />
-                  </div>
-                  <div>
-                    <p className="text-xs font-semibold text-slate-200">Administrador</p>
-                    <p className="text-[11px] text-slate-400 font-mono">admin@crmpro.local</p>
-                  </div>
-                </div>
-                <span className="text-[10px] bg-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded-md font-semibold">
-                  Acceso Total
-                </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleQuickLogin('vendedor@crmpro.local', 'vendedor123')}
-                className="flex items-center justify-between p-2.5 bg-slate-800/50 hover:bg-slate-800 border border-slate-700/50 rounded-xl text-left transition-colors group"
-              >
-                <div className="flex items-center gap-2.5">
-                  <div className="p-1.5 rounded-lg bg-emerald-500/20 text-emerald-400 group-hover:bg-emerald-500 group-hover:text-white transition-colors">
-                    <UserCheck className="h-4 w-4" />
-                  </div>
-                  <div>
-                    <p className="text-xs font-semibold text-slate-200">Lucas (Vendedor)</p>
-                    <p className="text-[11px] text-slate-400 font-mono">vendedor@crmpro.local</p>
-                  </div>
-                </div>
-                <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-md font-semibold">
-                  Sus Ventas
-                </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleQuickLogin('vendedor2@crmpro.local', 'vendedor123')}
-                className="flex items-center justify-between p-2.5 bg-slate-800/50 hover:bg-slate-800 border border-slate-700/50 rounded-xl text-left transition-colors group"
-              >
-                <div className="flex items-center gap-2.5">
-                  <div className="p-1.5 rounded-lg bg-emerald-500/20 text-emerald-400 group-hover:bg-emerald-500 group-hover:text-white transition-colors">
-                    <UserCheck className="h-4 w-4" />
-                  </div>
-                  <div>
-                    <p className="text-xs font-semibold text-slate-200">Mariana (Vendedora 2)</p>
-                    <p className="text-[11px] text-slate-400 font-mono">vendedor2@crmpro.local</p>
-                  </div>
-                </div>
-                <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-md font-semibold">
-                  Sus Ventas
-                </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleQuickLogin('lector@crmpro.local', 'lector123')}
-                className="flex items-center justify-between p-2.5 bg-slate-800/50 hover:bg-slate-800 border border-slate-700/50 rounded-xl text-left transition-colors group"
-              >
-                <div className="flex items-center gap-2.5">
-                  <div className="p-1.5 rounded-lg bg-amber-500/20 text-amber-400 group-hover:bg-amber-500 group-hover:text-white transition-colors">
-                    <Eye className="h-4 w-4" />
-                  </div>
-                  <div>
-                    <p className="text-xs font-semibold text-slate-200">Carlos (Lector)</p>
-                    <p className="text-[11px] text-slate-400 font-mono">lector@crmpro.local</p>
-                  </div>
-                </div>
-                <span className="text-[10px] bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-md font-semibold">
-                  Solo Dashboard
-                </span>
-              </button>
-            </div>
-          </div>
         </div>
       </div>
     </div>
