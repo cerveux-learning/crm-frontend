@@ -50,3 +50,16 @@ export interface TopProductData {
   unitsSold: number;
   totalRevenue: number;
 }
+
+export interface ConsignmentData {
+  id: string;
+  orderNumber: string;
+  status: string;
+  total: number;
+  issueDate: string;
+  dueDate: string | null;
+  customerId: string;
+  customerName: string;
+  customerCompany: string | null;
+  userName: string | null;
+}

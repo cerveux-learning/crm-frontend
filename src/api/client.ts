@@ -20,6 +20,7 @@ import type {
   DealsByStageData,
   TopCustomerData,
   TopProductData,
+  ConsignmentData,
   User,
   AuthUser,
   AuthResponse,
@@ -169,6 +170,7 @@ export const api = {
         dealsByStage: DealsByStageData[];
         topCustomers: TopCustomerData[];
         topProducts: TopProductData[];
+        consignments: ConsignmentData[];
       }>('/analytics/dashboard'),
   },
 
