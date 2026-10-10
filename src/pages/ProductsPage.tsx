@@ -18,11 +18,13 @@ import {
   User as UserIcon,
 } from 'lucide-react';
 import { api } from '../api/client.js';
+import { useAuth } from '../context/AuthContext.js';
 import { Badge } from '../components/common/Badge.js';
 import { Modal } from '../components/common/Modal.js';
 import type { Product, ProductCategory, CreateProductInput, StockMovement } from '../types';
 
 export const ProductsPage: React.FC = () => {
+  const { isViewer } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -73,6 +75,7 @@ export const ProductsPage: React.FC = () => {
   };
 
   const handleOpenCreateModal = () => {
+    if (isViewer) return;
     setEditingProduct(null);
     setForm({
       code: `ITEM-${Math.floor(1000 + Math.random() * 9000)}`,
@@ -88,6 +91,7 @@ export const ProductsPage: React.FC = () => {
   };
 
   const handleOpenEditModal = (p: Product) => {
+    if (isViewer) return;
     setEditingProduct(p);
     setForm({
       code: p.code,
@@ -104,6 +108,7 @@ export const ProductsPage: React.FC = () => {
 
   const handleSaveProduct = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isViewer) return;
     try {
       setSubmitting(true);
       const payload = {
@@ -129,6 +134,7 @@ export const ProductsPage: React.FC = () => {
   };
 
   const handleDeleteProduct = async (id: string) => {
+    if (isViewer) return;
     if (!confirm('¿Seguro que deseas eliminar este producto/servicio del catálogo?')) return;
     try {
       await api.products.delete(id);
@@ -140,6 +146,7 @@ export const ProductsPage: React.FC = () => {
 
   // Stock Inflow Modal handlers
   const handleOpenStockModal = (product: Product) => {
+    if (isViewer) return;
     setStockProduct(product);
     setStockQuantity(1);
     setStockNotes('');
@@ -148,7 +155,7 @@ export const ProductsPage: React.FC = () => {
 
   const handleSaveStockEntry = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!stockProduct) return;
+    if (isViewer || !stockProduct) return;
 
     if (!stockQuantity || stockQuantity <= 0) {
       alert('La cantidad a ingresar es requerida y debe ser mayor a 0.');
@@ -242,13 +249,15 @@ export const ProductsPage: React.FC = () => {
         </div>
 
         {/* Action Button */}
-        <button
-          onClick={handleOpenCreateModal}
-          className="w-full lg:w-auto inline-flex items-center justify-center gap-2 bg-brand-600 hover:bg-brand-700 text-white font-semibold text-xs sm:text-sm px-4 py-2.5 rounded-xl transition-colors shadow-sm shrink-0"
-        >
-          <Plus className="h-4 w-4" />
-          Nuevo Ítem
-        </button>
+        {!isViewer && (
+          <button
+            onClick={handleOpenCreateModal}
+            className="w-full lg:w-auto inline-flex items-center justify-center gap-2 bg-brand-600 hover:bg-brand-700 text-white font-semibold text-xs sm:text-sm px-4 py-2.5 rounded-xl transition-colors shadow-sm shrink-0"
+          >
+            <Plus className="h-4 w-4" />
+            Nuevo Ítem
+          </button>
+        )}
       </div>
 
       {/* Product Catalog Grid */}
@@ -316,15 +325,17 @@ export const ProductsPage: React.FC = () => {
                   </div>
 
                   {/* Stock Entry & History Action Bar */}
-                  <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-50">
-                    <button
-                      onClick={() => handleOpenStockModal(product)}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-semibold text-xs transition-colors border border-emerald-200/60"
-                      title="Registrar ingreso de mercadería"
-                    >
-                      <PackagePlus className="h-3.5 w-3.5" />
-                      Ingreso de Mercadería
-                    </button>
+                  <div className={`flex items-center ${isViewer ? 'justify-end' : 'justify-between'} gap-2 pt-2 border-t border-slate-50`}>
+                    {!isViewer && (
+                      <button
+                        onClick={() => handleOpenStockModal(product)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-semibold text-xs transition-colors border border-emerald-200/60"
+                        title="Registrar ingreso de mercadería"
+                      >
+                        <PackagePlus className="h-3.5 w-3.5" />
+                        Ingreso de Mercadería
+                      </button>
+                    )}
 
                     <button
                       onClick={() => handleOpenHistoryModal(product)}
@@ -349,22 +360,24 @@ export const ProductsPage: React.FC = () => {
                       )}
                     </div>
 
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={() => handleOpenEditModal(product)}
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
-                        title="Editar Datos Generales"
-                      >
-                        <Edit2 className="h-4 w-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteProduct(product.id)}
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-slate-100 transition-colors"
-                        title="Eliminar"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
+                    {!isViewer && (
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => handleOpenEditModal(product)}
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+                          title="Editar Datos Generales"
+                        >
+                          <Edit2 className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteProduct(product.id)}
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-slate-100 transition-colors"
+                          title="Eliminar"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

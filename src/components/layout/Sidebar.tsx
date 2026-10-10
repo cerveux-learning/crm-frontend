@@ -85,7 +85,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       id: 'products',
       label: 'Catálogo de Productos',
       icon: <Package className="h-5 w-5 shrink-0" />,
-      allowedRoles: ['ADMIN', 'SELLER'],
+      allowedRoles: ['ADMIN', 'SELLER', 'VIEWER'],
     },
     {
       id: 'sales',

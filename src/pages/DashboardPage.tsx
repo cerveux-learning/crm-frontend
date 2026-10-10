@@ -420,14 +420,12 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
                 <p className="text-[11px] text-slate-400">Más demandados por el canal</p>
               </div>
             </div>
-            {!isViewer && (
-              <button
-                onClick={() => onNavigate('products')}
-                className="text-xs text-brand-600 hover:text-brand-700 font-semibold shrink-0"
-              >
-                Ver catálogo
-              </button>
-            )}
+            <button
+              onClick={() => onNavigate('products')}
+              className="text-xs text-brand-600 hover:text-brand-700 font-semibold shrink-0"
+            >
+              Ver catálogo
+            </button>
           </div>
 
           <div className="divide-y divide-slate-100">

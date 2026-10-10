@@ -18,12 +18,12 @@ function MainLayout() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
 
-  // If viewer logs in or changes, ensure tab is dashboard
+  // If viewer logs in or tries to access an unauthorized tab, ensure tab is valid
   useEffect(() => {
-    if (isViewer) {
+    if (isViewer && !['dashboard', 'products', 'commissions'].includes(activeTab)) {
       setActiveTab('dashboard');
     }
-  }, [isViewer]);
+  }, [isViewer, activeTab]);
 
   // If not admin and on users tab, redirect to dashboard
   useEffect(() => {
@@ -97,7 +97,7 @@ function MainLayout() {
           )}
           {!isViewer && activeTab === 'pipeline' && <PipelinePage key={refreshKey} />}
           {!isViewer && activeTab === 'customers' && <CustomersPage key={refreshKey} />}
-          {!isViewer && activeTab === 'products' && <ProductsPage key={refreshKey} />}
+          {activeTab === 'products' && <ProductsPage key={refreshKey} />}
           {!isViewer && activeTab === 'sales' && <SalesPage key={refreshKey} />}
           {isAdmin && activeTab === 'users' && <UsersPage key={refreshKey} />}
           {!isViewer && activeTab === 'next-contacts' && <NextContactsPage key={refreshKey} />}
